@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
+import { StorageService, isTauri } from '../../services/storage';
 import { CustomComponentTemplate } from '../../types';
 import { CustomSvgRenderer } from '../canvas/CustomSvgRenderer';
 import { NodeRegistry } from '../../registry/NodeRegistry';
@@ -50,26 +50,54 @@ export const SidebarLeft: React.FC = () => {
     setView('studio');
   };
 
+  const processImportedContent = async (content: string) => {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.componentId && parsed.name && Array.isArray(parsed.layers)) {
+        const dirPath = await StorageService.get_global_components_dir();
+        const targetPath = `${dirPath}/${parsed.componentId}.json`;
+        await StorageService.save_text_file(targetPath, content);
+        const state = useAppStore.getState() as any;
+        await state.loadLibrary();
+      } else {
+        alert('Invalid component file structure.');
+      }
+    } catch (err) {
+      console.error('Import parse error:', err);
+      alert('Failed to parse component file.');
+    }
+  };
+
   const handleImportComponent = async () => {
     try {
-      const selected = await open({
-        directory: false,
-        multiple: false,
-        filters: [{ name: 'JSON Component', extensions: ['json'] }],
-        title: language === 'tr' ? 'Bileşen Dosyası Seç' : 'Choose Component File'
-      });
-      if (selected && typeof selected === 'string') {
-        const content: string = await invoke('read_text_file', { path: selected });
-        const parsed = JSON.parse(content);
-        if (parsed.componentId && parsed.name && Array.isArray(parsed.layers)) {
-          const dirPath = await invoke<string>('get_global_components_dir');
-          const targetPath = `${dirPath}/${parsed.componentId}.json`;
-          await invoke('save_text_file', { path: targetPath, content });
-          const state = useAppStore.getState() as any;
-          await state.loadLibrary();
-        } else {
-          alert('Invalid component file structure.');
+      if (isTauri()) {
+        const selected = await open({
+          directory: false,
+          multiple: false,
+          filters: [{ name: 'JSON Component', extensions: ['json'] }],
+          title: language === 'tr' ? 'Bileşen Dosyası Seç' : 'Choose Component File'
+        });
+        if (selected && typeof selected === 'string') {
+          const content = await StorageService.read_text_file(selected);
+          await processImportedContent(content);
         }
+      } else {
+        // Web Implementation: hidden file input
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e: any) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async (re) => {
+            if (re.target?.result) {
+              await processImportedContent(re.target.result as string);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
       }
     } catch (err) {
       console.error('Import error:', err);
@@ -78,13 +106,25 @@ export const SidebarLeft: React.FC = () => {
 
   const handleExportComponent = async (comp: CustomComponentTemplate) => {
     try {
-      const savePath = await save({
-        defaultPath: `${comp.name}.json`,
-        filters: [{ name: 'JSON Component', extensions: ['json'] }],
-        title: language === 'tr' ? 'Bileşeni Kaydet' : 'Save Component File'
-      });
-      if (savePath) {
-        await invoke('save_text_file', { path: savePath, content: JSON.stringify(comp, null, 2) });
+      const content = JSON.stringify(comp, null, 2);
+      if (isTauri()) {
+        const savePath = await save({
+          defaultPath: `${comp.name}.json`,
+          filters: [{ name: 'JSON Component', extensions: ['json'] }],
+          title: language === 'tr' ? 'Bileşeni Kaydet' : 'Save Component File'
+        });
+        if (savePath) {
+          await StorageService.save_text_file(savePath, content);
+        }
+      } else {
+        // Web Implementation: download via blob
+        const blob = new Blob([content], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${comp.name}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
       }
     } catch (err) {
       console.error('Export error:', err);

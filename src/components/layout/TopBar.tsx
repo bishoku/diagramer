@@ -10,7 +10,7 @@ import { translations } from '../../i18n/translations';
 import { calculateSchedules } from '../../store/scheduler';
 import { generateStandaloneHtml } from '../../utils/exportTemplate';
 import { save } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
+import { StorageService, isTauri } from '../../services/storage';
 
 export const TopBar: React.FC = () => {
   const currentWorkspace = useAppStore((s) => s.currentWorkspace);
@@ -61,17 +61,28 @@ export const TopBar: React.FC = () => {
   const handleExportHtml = async () => {
     try {
       const defaultName = `${currentWorkspace?.name || 'diagram'}_simulation.html`;
-      const selectedPath = await save({
-        title: language === 'tr' ? 'HTML Simülasyonunu Kaydet' : 'Save Standalone HTML Simulation',
-        defaultPath: defaultName,
-        filters: [{ name: 'HTML', extensions: ['html'] }],
-      });
-
-      if (!selectedPath) return;
-
       const htmlContent = generateStandaloneHtml(logicalData, visualData, libraryComponents);
-      await invoke('save_text_file', { path: selectedPath, content: htmlContent });
-      alert(language === 'tr' ? 'HTML Simülasyonu başarıyla kaydedildi!' : 'HTML Simulation saved successfully!');
+
+      if (isTauri()) {
+        const selectedPath = await save({
+          title: language === 'tr' ? 'HTML Simülasyonunu Kaydet' : 'Save Standalone HTML Simulation',
+          defaultPath: defaultName,
+          filters: [{ name: 'HTML', extensions: ['html'] }],
+        });
+
+        if (!selectedPath) return;
+        await StorageService.save_text_file(selectedPath, htmlContent);
+      } else {
+        // Web Implementation: Download via Blob
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = defaultName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      alert(language === 'tr' ? 'HTML Simülasyonu başarıyla dışa aktarıldı!' : 'HTML Simulation exported successfully!');
     } catch (err) {
       console.error('Error exporting HTML:', err);
       alert(language === 'tr' ? `Dışa aktarma hatası: ${err}` : `Export error: ${err}`);

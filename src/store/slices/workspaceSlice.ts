@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { AppState, WorkspaceMeta } from '../../types';
 import { Language, Theme } from '../../i18n/translations';
-import { invoke } from '@tauri-apps/api/core';
+import { StorageService } from '../../services/storage';
 
 const applyTheme = (theme: Theme) => {
   if (theme === 'dark') {
@@ -56,7 +56,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
 
   createWorkspace: async (name: string, description: string) => {
     try {
-      const resJson = await invoke<string>('create_workspace', { name, description });
+      const resJson = await StorageService.create_workspace(name, description);
       const ws: WorkspaceMeta = JSON.parse(resJson);
       
       set({ 
@@ -80,23 +80,34 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
 
   loadWorkspace: async (path: string) => {
     try {
-      const resJson = await invoke<string>('load_workspace', { path });
+      const resJson = await StorageService.load_workspace(path);
       const ws: WorkspaceMeta = JSON.parse(resJson);
       
       let logicalData = { nodes: [], edges: [], sequences: [] };
       let visualData = { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, timelines: {} };
       try {
-        const diagJson = await invoke<string>('load_diagram', { path });
+        const diagJson = await StorageService.load_diagram(path);
         const diag = JSON.parse(diagJson);
-        if (diag.logical && Array.isArray(diag.logical.nodes) && Array.isArray(diag.logical.edges)) {
+        if (diag.logicalData && Array.isArray(diag.logicalData.nodes) && Array.isArray(diag.logicalData.edges)) {
           logicalData = {
-            nodes: diag.logical.nodes,
-            edges: diag.logical.edges,
-            sequences: Array.isArray(diag.logical.sequences) ? diag.logical.sequences : []
+            nodes: diag.logicalData.nodes,
+            edges: diag.logicalData.edges,
+            sequences: Array.isArray(diag.logicalData.sequences) ? diag.logicalData.sequences : []
+          };
+        } else if (diag.logical) {
+          // Backward compatibility for old Tauri JSON format
+          logicalData = {
+            nodes: diag.logical.nodes || [],
+            edges: diag.logical.edges || [],
+            sequences: diag.logical.sequences || []
           };
         }
-        if (diag.visual) {
-          visualData = {
+        
+        if (diag.visualData) {
+          visualData = diag.visualData;
+        } else if (diag.visual) {
+           // Backward compatibility
+           visualData = {
             canvas: {
               zoom: diag.visual.canvas?.zoom ?? 1,
               pan: {
@@ -133,7 +144,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
 
   fetchRecentWorkspaces: async () => {
     try {
-      const resJson = await invoke<string>('get_recent_workspaces');
+      const resJson = await StorageService.get_recent_workspaces();
       const list: WorkspaceMeta[] = JSON.parse(resJson);
       set({ recentWorkspaces: list });
     } catch (err) {
@@ -152,7 +163,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
     try {
       set({ language: lang });
       const prefObj = { language: lang, theme: get().theme };
-      await invoke('save_preferences', { preferencesJson: JSON.stringify(prefObj) });
+      await StorageService.save_preferences(JSON.stringify(prefObj));
     } catch (err) {
       console.error('Error saving language preference:', err);
     }
@@ -163,7 +174,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       set({ theme });
       applyTheme(theme);
       const prefObj = { language: get().language, theme };
-      await invoke('save_preferences', { preferencesJson: JSON.stringify(prefObj) });
+      await StorageService.save_preferences(JSON.stringify(prefObj));
     } catch (err) {
       console.error('Error saving theme preference:', err);
     }
@@ -171,7 +182,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
 
   loadAppPreferences: async () => {
     try {
-      const resJson = await invoke<string>('load_preferences');
+      const resJson = await StorageService.load_preferences();
       const prefObj = JSON.parse(resJson);
       
       let finalLang: Language = 'en';
@@ -210,14 +221,10 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
     
     set({ isSaving: true });
     try {
-      const logicalJson = JSON.stringify(state.logicalData, null, 2);
-      const visualJson = JSON.stringify(state.visualData, null, 2);
+      const logicalJson = JSON.stringify(state.logicalData);
+      const visualJson = JSON.stringify(state.visualData);
       
-      await invoke('save_diagram', {
-        workspacePath: state.currentWorkspace.path,
-        logicalJson,
-        visualJson
-      });
+      await StorageService.save_diagram(state.currentWorkspace.path, logicalJson, visualJson);
       
       set({ isDirty: false });
     } catch (err) {

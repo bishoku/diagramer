@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import { AppState, CustomComponentTemplate, ShapeLayer } from '../../types';
-import { invoke } from '@tauri-apps/api/core';
+import { StorageService } from '../../services/storage';
 
 export interface StudioSlice {
   currentView: 'diagram' | 'studio';
@@ -83,12 +83,12 @@ export const createStudioSlice: StateCreator<AppState, [], [], StudioSlice> = (s
     const state = get();
     if (!state.activeComponent) return;
     try {
-      const componentsDir = await invoke<string>('get_global_components_dir');
+      const componentsDir = await StorageService.get_global_components_dir();
       const path = `${componentsDir}/${state.activeComponent.componentId}.json`;
-      await invoke('save_text_file', {
+      await StorageService.save_text_file(
         path,
-        content: JSON.stringify(state.activeComponent, null, 2)
-      });
+        JSON.stringify(state.activeComponent, null, 2)
+      );
       await get().loadLibrary();
     } catch (err: any) {
       console.error('Error saving component to library:', err);
@@ -98,8 +98,8 @@ export const createStudioSlice: StateCreator<AppState, [], [], StudioSlice> = (s
 
   loadLibrary: async () => {
     try {
-      const dirPath = await invoke<string>('get_global_components_dir');
-      const files: string[] = await invoke('list_json_files_in_dir', { dirPath });
+      const dirPath = await StorageService.get_global_components_dir();
+      const files: string[] = await StorageService.list_json_files_in_dir(dirPath);
       const libraryComponents = files.map((f) => JSON.parse(f));
       set({ libraryComponents });
     } catch (err: any) {
@@ -109,9 +109,9 @@ export const createStudioSlice: StateCreator<AppState, [], [], StudioSlice> = (s
 
   deleteComponentFromLibrary: async (componentId) => {
     try {
-      const componentsDir = await invoke<string>('get_global_components_dir');
+      const componentsDir = await StorageService.get_global_components_dir();
       const path = `${componentsDir}/${componentId}.json`;
-      await invoke('delete_file', { path });
+      await StorageService.delete_file(path);
       await get().loadLibrary();
     } catch (err) {
       console.error('Error deleting component from library:', err);

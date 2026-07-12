@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AppState } from '../types';
-import { invoke } from '@tauri-apps/api/core';
+import { StorageService } from '../services/storage';
 
 import { createWorkspaceSlice } from './slices/workspaceSlice';
 import { createCanvasSlice } from './slices/canvasSlice';
@@ -66,13 +66,13 @@ const performSave = async (): Promise<boolean> => {
     const path = state.currentWorkspace.path;
     const freshState = useAppStore.getState();
     
-    await invoke('save_workspace', { metaJson: JSON.stringify(freshState.currentWorkspace) });
+    await StorageService.save_workspace(JSON.stringify(freshState.currentWorkspace));
     
-    await invoke('save_diagram', { 
+    await StorageService.save_diagram( 
       path,
-      logicalJson: JSON.stringify(freshState.logicalData),
-      visualJson: JSON.stringify(freshState.visualData)
-    });
+      JSON.stringify(freshState.logicalData),
+      JSON.stringify(freshState.visualData)
+    );
     
     const afterSaveState = useAppStore.getState();
     if (afterSaveState.logicalData === freshState.logicalData && 
