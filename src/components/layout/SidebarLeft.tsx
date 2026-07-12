@@ -1,17 +1,15 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { 
-  Folder, FileJson, Boxes, Laptop, Network, Server, Database, Zap, ArrowRightLeft, 
-  Plus, Download, Upload, Edit, Trash2 
+  Boxes, Laptop, Network, Server, Database, Zap, ArrowRightLeft, 
+  Plus, Download, Upload, Edit, Trash2, Search, X
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
-import { translations } from '../../i18n/translations';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { CustomComponentTemplate } from '../../types';
 import { CustomSvgRenderer } from '../canvas/CustomSvgRenderer';
 
 export const SidebarLeft: React.FC = () => {
-  const currentWorkspace = useAppStore((s) => s.currentWorkspace);
   const language = useAppStore((s) => s.language);
   const startDrag = useAppStore((s) => s.startDrag);
   const pendingDrop = useAppStore((s) => s.pendingDrop);
@@ -22,16 +20,15 @@ export const SidebarLeft: React.FC = () => {
   const setActiveComponent = useAppStore((s: any) => s.setActiveComponent);
   const deleteComponentFromLibrary = useAppStore((s: any) => s.deleteComponentFromLibrary);
 
-  const t = translations[language];
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // List of drag-and-drop template components
   const libraryComponents = [
-    { type: 'client', name: language === 'tr' ? 'İstemci (Web/App)' : 'Client (Web/App)', defaultName: 'Client', icon: <Laptop className="w-4 h-4 text-indigo-500" /> },
-    { type: 'gateway', name: 'API Gateway', defaultName: 'API Gateway', icon: <Network className="w-4 h-4 text-emerald-500" /> },
-    { type: 'server', name: language === 'tr' ? 'Uygulama Sunucusu' : 'App Server', defaultName: 'App Server', icon: <Server className="w-4 h-4 text-violet-500" /> },
-    { type: 'database', name: language === 'tr' ? 'Veritabanı (SQL)' : 'Database (SQL)', defaultName: 'Database', icon: <Database className="w-4 h-4 text-rose-500" /> },
-    { type: 'cache', name: language === 'tr' ? 'Önbellek (Redis)' : 'Cache Store (Redis)', defaultName: 'Cache Store', icon: <Zap className="w-4 h-4 text-amber-500" /> },
-    { type: 'queue', name: language === 'tr' ? 'Mesaj Kuyruğu' : 'Message Queue', defaultName: 'Message Queue', icon: <ArrowRightLeft className="w-4 h-4 text-cyan-500" /> },
+    { type: 'client', name: language === 'tr' ? 'Kullanıcı (Client)' : 'Client', defaultName: 'Client', icon: <Laptop className="w-4 h-4 text-indigo-500" /> },
+    { type: 'load_balancer', name: language === 'tr' ? 'Yük Dengeleyici (LB)' : 'Load Balancer', defaultName: 'LB', icon: <Network className="w-4 h-4 text-emerald-500" /> },
+    { type: 'server', name: language === 'tr' ? 'Sunucu (Server)' : 'Server', defaultName: 'Server', icon: <Server className="w-4 h-4 text-amber-500" /> },
+    { type: 'database', name: language === 'tr' ? 'Veritabanı (DB)' : 'Database', defaultName: 'Database', icon: <Database className="w-4 h-4 text-rose-500" /> },
+    { type: 'cache', name: language === 'tr' ? 'Önbellek (Cache)' : 'Cache', defaultName: 'Cache', icon: <Zap className="w-4 h-4 text-cyan-500" /> },
+    { type: 'message_queue', name: language === 'tr' ? 'Kuyruk (Queue)' : 'Queue', defaultName: 'Queue', icon: <ArrowRightLeft className="w-4 h-4 text-purple-500" /> },
   ];
 
   const handleMouseDown = useCallback((type: string, defaultName: string) => {
@@ -39,7 +36,6 @@ export const SidebarLeft: React.FC = () => {
     startDrag(type, defaultName);
   }, [startDrag]);
 
-  // Launch Studio to design a new component
   const handleCreateNewCustomComponent = () => {
     const compId = `custom-comp-${Date.now()}`;
     const newComp: CustomComponentTemplate = {
@@ -54,7 +50,6 @@ export const SidebarLeft: React.FC = () => {
     setView('studio');
   };
 
-  // Import JSON component file from disk
   const handleImportComponent = async () => {
     try {
       const selected = await open({
@@ -67,7 +62,8 @@ export const SidebarLeft: React.FC = () => {
         const content: string = await invoke('read_text_file', { path: selected });
         const parsed = JSON.parse(content);
         if (parsed.componentId && parsed.name && Array.isArray(parsed.layers)) {
-          const targetPath = `${currentWorkspace?.path}/components/${parsed.componentId}.json`;
+          const dirPath = await invoke<string>('get_global_components_dir');
+          const targetPath = `${dirPath}/${parsed.componentId}.json`;
           await invoke('save_text_file', { path: targetPath, content });
           const state = useAppStore.getState() as any;
           await state.loadLibrary();
@@ -80,7 +76,6 @@ export const SidebarLeft: React.FC = () => {
     }
   };
 
-  // Export custom component as JSON to disk
   const handleExportComponent = async (comp: CustomComponentTemplate) => {
     try {
       const savePath = await save({
@@ -110,73 +105,66 @@ export const SidebarLeft: React.FC = () => {
     }
   };
 
+  const filteredStandard = libraryComponents.filter(comp =>
+    comp.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredCustom = libraryComponentsList.filter((comp: CustomComponentTemplate) =>
+    comp.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <aside className={`border-r border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 backdrop-blur-md flex flex-col h-full select-none shrink-0 z-20 transition-all duration-300 ease-in-out overflow-hidden ${
       leftSidebarOpen ? 'w-[260px]' : 'w-0 border-r-0'
     }`}>
-      {/* File Explorer Panel */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="p-3 border-b border-slate-200 dark:border-slate-850 flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider">{t.explorer}</span>
-          <Folder className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          <div className="flex items-center gap-2 p-2 text-indigo-750 dark:text-indigo-400 text-sm font-semibold rounded-lg bg-indigo-500/5 border border-indigo-500/10 dark:border-indigo-500/25">
-            <Folder className="w-4 h-4" />
-            <span className="truncate">{currentWorkspace?.name}</span>
-          </div>
-          
-          <div className="pl-4 space-y-1 mt-1">
-            <div className="flex items-center justify-between p-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg text-xs cursor-pointer group">
-              <div className="flex items-center gap-2 truncate">
-                <FileJson className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                <span className="truncate">{t.workspaceJson}</span>
-              </div>
-              <span className="text-[10px] px-1 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-500 rounded font-mono group-hover:text-slate-700 dark:group-hover:text-slate-400 transition-colors">
-                {t.workspaceConfig}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 p-2 text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg text-xs cursor-pointer">
-              <Folder className="w-3.5 h-3.5 text-slate-450 dark:text-slate-600" />
-              <span className="truncate">diagrams/</span>
-            </div>
-            
-            <div className="pl-4 text-[11px] text-slate-450 dark:text-slate-500 italic py-1">
-              {t.noDiagrams}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="h-px bg-slate-200 dark:bg-slate-800" />
-
-      {/* Library Asset Panel — Click to pick, then click on canvas to place */}
-      <div className="h-[460px] flex flex-col min-h-0 bg-slate-50/50 dark:bg-slate-900/20">
-        <div className="p-3 border-b border-slate-200 dark:border-slate-850 flex items-center justify-between shrink-0">
-          <span className="text-xs font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider">{t.library}</span>
+      <div className="p-3 border-b border-slate-200 dark:border-slate-850 flex flex-col gap-2 shrink-0 bg-slate-50/20 dark:bg-slate-900/10">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider">
+            {language === 'tr' ? 'Bileşen Kütüphanesi' : 'Component Library'}
+          </span>
           <Boxes className="w-4 h-4 text-slate-400 dark:text-slate-500" />
         </div>
         
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <div className="relative flex items-center mt-0.5">
+          <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 pointer-events-none" />
+          <input
+            type="text"
+            placeholder={language === 'tr' ? 'Bileşen ara...' : 'Search components...'}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 hover:bg-slate-100/50 dark:bg-slate-950 dark:hover:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 font-medium transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <div className="space-y-2">
+          <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider pl-1">
+            {language === 'tr' ? 'Varsayılan Bileşenler' : 'Standard Components'}
+          </div>
           
-          {/* Section A: Standard Components */}
           <div className="space-y-2">
-            <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider pl-1">
-              {language === 'tr' ? 'Varsayılan Bileşenler' : 'Standard Components'}
-            </div>
-            
-            <div className="space-y-2">
-              {libraryComponents.map((comp) => (
+            {filteredStandard.length === 0 ? (
+              <div className="p-3 text-[10px] text-slate-400 dark:text-slate-500 italic text-center">
+                {language === 'tr' ? 'Eşleşen standart bileşen yok.' : 'No matching standard components.'}
+              </div>
+            ) : (
+              filteredStandard.map((comp) => (
                 <div
                   key={comp.type}
                   onMouseDown={() => handleMouseDown(comp.type, comp.defaultName)}
                   className={`p-2.5 border rounded-xl flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all group
                     ${pendingDrop?.type === comp.type 
                       ? 'bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/50 dark:border-indigo-500/40 shadow-md ring-2 ring-indigo-500/30' 
-                      : 'bg-white dark:bg-slate-950 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
+                      : 'bg-white dark:bg-slate-955 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
                     }`}
                 >
                   <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group-hover:scale-105 transition-transform">
@@ -186,99 +174,99 @@ export const SidebarLeft: React.FC = () => {
                     {comp.name}
                   </span>
                 </div>
-              ))}
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="h-px bg-slate-200/60 dark:bg-slate-800" />
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between pl-1">
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              {language === 'tr' ? 'Özel Tasarımlar' : 'Custom Components'}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleImportComponent}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-slate-650 cursor-pointer"
+                title={language === 'tr' ? 'Bileşen İçe Aktar (.json)' : 'Import Component (.json)'}
+              >
+                <Upload className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={handleCreateNewCustomComponent}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-600 cursor-pointer"
+                title={language === 'tr' ? 'Yeni Tasarla' : 'Design New'}
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          <div className="h-px bg-slate-200/60 dark:bg-slate-800" />
-
-          {/* Section B: Custom Components */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between pl-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {language === 'tr' ? 'Özel Tasarımlar' : 'Custom Components'}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handleImportComponent}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-slate-650 cursor-pointer"
-                  title={language === 'tr' ? 'Bileşen İçe Aktar (.json)' : 'Import Component (.json)'}
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={handleCreateNewCustomComponent}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-600 cursor-pointer"
-                  title={language === 'tr' ? 'Yeni Tasarla' : 'Design New'}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+            {filteredCustom.length === 0 ? (
+              <div className="p-4 border border-dashed border-slate-200 dark:border-slate-850 rounded-xl text-center text-[10px] text-slate-400 dark:text-slate-500 italic leading-relaxed">
+                {searchQuery 
+                  ? (language === 'tr' ? 'Eşleşen özel tasarım bulunamadı.' : 'No matching custom components found.')
+                  : (language === 'tr' 
+                      ? 'Henüz özel bileşen yok. Tasarlamak için "+" ikonuna tıklayın.' 
+                      : 'No custom components yet. Click "+" to design.')}
               </div>
-            </div>
-
-            <div className="space-y-2">
-              {libraryComponentsList.length === 0 ? (
-                <div className="p-4 border border-dashed border-slate-200 dark:border-slate-850 rounded-xl text-center text-[10px] text-slate-400 dark:text-slate-500 italic leading-relaxed">
-                  {language === 'tr' 
-                    ? 'Henüz özel bileşen yok. Tasarlamak için "+" ikonuna tıklayın.' 
-                    : 'No custom components yet. Click "+" to design.'}
-                </div>
-              ) : (
-                libraryComponentsList.map((comp: CustomComponentTemplate) => (
-                  <div
-                    key={comp.componentId}
-                    onMouseDown={() => startDrag(comp.componentId, comp.name)}
-                    className={`p-2.5 border rounded-xl flex items-center justify-between cursor-grab active:cursor-grabbing transition-all group
-                      ${pendingDrop?.type === comp.componentId 
-                        ? 'bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/50 dark:border-indigo-500/40 shadow-md ring-2 ring-indigo-500/30' 
-                        : 'bg-white dark:bg-slate-950 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
-                      }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-0.5 group-hover:scale-105 transition-all overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
-                        <CustomSvgRenderer 
-                          layers={comp.layers} 
-                          width={comp.dimensions.width} 
-                          height={comp.dimensions.height} 
-                        />
-                      </div>
-                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-350 truncate">
-                        {comp.name}
-                      </span>
+            ) : (
+              filteredCustom.map((comp: CustomComponentTemplate) => (
+                <div
+                  key={comp.componentId}
+                  onMouseDown={() => startDrag(comp.componentId, comp.name)}
+                  className={`p-2.5 border rounded-xl flex items-center justify-between cursor-grab active:cursor-grabbing transition-all group
+                    ${pendingDrop?.type === comp.componentId 
+                      ? 'bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/50 dark:border-indigo-500/40 shadow-md ring-2 ring-indigo-500/30' 
+                      : 'bg-white dark:bg-slate-955 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
+                    }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-0.5 group-hover:scale-105 transition-all overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+                      <CustomSvgRenderer 
+                        layers={comp.layers} 
+                        width={comp.dimensions.width} 
+                        height={comp.dimensions.height} 
+                      />
                     </div>
-
-                    <div 
-                      className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pl-2"
-                      onMouseDown={(e) => e.stopPropagation()} // Prevent initiating drag when clicking action buttons
-                    >
-                      <button
-                        onClick={() => handleEditComponent(comp)}
-                        className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-650 cursor-pointer"
-                        title="Düzenle"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleExportComponent(comp)}
-                        className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-650 cursor-pointer"
-                        title="Dışa Aktar"
-                      >
-                        <Download className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteComponent(comp.componentId)}
-                        className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 cursor-pointer"
-                        title="Sil"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-350 truncate">
+                      {comp.name}
+                    </span>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
 
+                  <div 
+                    className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pl-2"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => handleEditComponent(comp)}
+                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-650 cursor-pointer"
+                      title="Düzenle"
+                    >
+                      <Edit className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleExportComponent(comp)}
+                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-650 cursor-pointer"
+                      title="Dışa Aktar"
+                    >
+                      <Download className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteComponent(comp.componentId)}
+                      className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 cursor-pointer"
+                      title="Sil"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </aside>

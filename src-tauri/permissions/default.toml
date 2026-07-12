@@ -62,3 +62,8 @@ commands.allow = ["delete_file"]
 identifier = "allow-list-json-files-in-dir"
 description = "Allows listing component files in directory"
 commands.allow = ["list_json_files_in_dir"]
+
+[[permission]]
+identifier = "allow-get-global-components-dir"
+description = "Allows getting global components directory path"
+commands.allow = ["get_global_components_dir"]

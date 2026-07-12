@@ -206,6 +206,16 @@ fn save_preferences(app_handle: AppHandle, preferences_json: String) -> Result<(
 }
 
 #[tauri::command]
+fn get_global_components_dir(app_handle: AppHandle) -> Result<String, String> {
+    let home = app_handle.path().home_dir().map_err(|e| format!("Failed to resolve home dir: {}", e))?;
+    let components_dir = home.join(".diagramer").join("components");
+    if !components_dir.exists() {
+        fs::create_dir_all(&components_dir).map_err(|e| format!("Failed to create global components dir: {}", e))?;
+    }
+    Ok(components_dir.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 fn load_diagram(path: String) -> Result<String, String> {
     let ws_path = Path::new(&path);
     if !ws_path.exists() {
@@ -325,6 +335,7 @@ pub fn run() {
             save_workspace,
             load_preferences,
             save_preferences,
+            get_global_components_dir,
             load_diagram,
             save_diagram,
             save_text_file,

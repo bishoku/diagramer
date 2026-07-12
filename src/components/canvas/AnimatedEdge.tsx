@@ -53,11 +53,13 @@ export const AnimatedEdge: React.FC<EdgeProps> = (props) => {
   }
   const isAnimating = !!activeSeq;
 
-  // Build step labels string, e.g. "S1, S2"
+  // Build step labels string, e.g. "1- [HTTP]" or "1, 2- [gRPC]"
   const stepNums = seqsForEdge
-    .map((s) => `S${s.stepNumber}`)
+    .map((s) => s.stepNumber)
+    .sort((a, b) => a - b)
     .filter((value, index, self) => self.indexOf(value) === index);
-  const stepLabel = stepNums.join(', ');
+  const protocolText = le?.protocol ? `- [${le.protocol}]` : '';
+  const stepLabel = stepNums.length > 0 ? `${stepNums.join(', ')}${protocolText}` : '';
 
   useEffect(() => {
     const pathEl = pathRef.current;

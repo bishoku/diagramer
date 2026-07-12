@@ -770,8 +770,13 @@ export const generateStandaloneHtml = (
           badgeGroup.setAttribute('class', 'edge-badge-group');
           badgeGroup.id = 'edge-badge-' + edge.id;
 
-          const stepText = edgeSeqs.map(s => 'S' + s.stepNumber).join(',');
-          const badgeW = Math.max(22, stepText.length * 7 + 8);
+          const stepNums = edgeSeqs
+            .map(s => s.stepNumber)
+            .sort((a, b) => a - b)
+            .filter((value, index, self) => self.indexOf(value) === index);
+          const protocolText = edge.protocol ? '- [' + edge.protocol + ']' : '';
+          const stepText = stepNums.length > 0 ? stepNums.join(',') + protocolText : '';
+          const badgeW = Math.max(22, stepText.length * 6 + 12);
           const badgeH = 16;
 
           const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');

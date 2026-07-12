@@ -189,12 +189,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       
       set({ language: finalLang, theme: finalTheme });
       applyTheme(finalTheme);
+      
+      // Load global custom components library on startup
+      await get().loadLibrary();
     } catch (err) {
       console.error('Error loading app preferences:', err);
       const sysLang = navigator.language || 'en';
       const finalLang: Language = sysLang.toLowerCase().startsWith('tr') ? 'tr' : 'en';
       set({ language: finalLang, theme: 'dark' });
       applyTheme('dark');
+      
+      // Attempt loading global library even if preferences call fails
+      try {
+        await get().loadLibrary();
+      } catch (_) {}
     }
   },
 
@@ -607,36 +615,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   }),
   saveComponentToLibrary: async () => {
     const state = get();
-    if (!state.activeComponent || !state.currentWorkspace) return;
-    const componentsDir = `${state.currentWorkspace.path}/components`;
-    const path = `${componentsDir}/${state.activeComponent.componentId}.json`;
+    if (!state.activeComponent) return;
     try {
+      console.log('[saveComponentToLibrary] activeComponent:', state.activeComponent);
+      const componentsDir = await invoke<string>('get_global_components_dir');
+      console.log('[saveComponentToLibrary] global components dir path resolved:', componentsDir);
+      const path = `${componentsDir}/${state.activeComponent.componentId}.json`;
       await invoke('save_text_file', {
         path,
         content: JSON.stringify(state.activeComponent, null, 2)
       });
+      console.log('[saveComponentToLibrary] saved successfully to:', path);
       await get().loadLibrary();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving component to library:', err);
+      alert(`Save component failed: ${err.message || JSON.stringify(err) || err.toString()}`);
     }
   },
   loadLibrary: async () => {
-    const state = get();
-    if (!state.currentWorkspace) return;
-    const dirPath = `${state.currentWorkspace.path}/components`;
     try {
+      console.log('[loadLibrary] fetching global components dir...');
+      const dirPath = await invoke<string>('get_global_components_dir');
+      console.log('[loadLibrary] components dir:', dirPath);
       const files: string[] = await invoke('list_json_files_in_dir', { dirPath });
+      console.log('[loadLibrary] files loaded:', files.length);
       const libraryComponents = files.map((f) => JSON.parse(f));
       set({ libraryComponents });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading library:', err);
+      alert(`Load library failed: ${err.message || JSON.stringify(err) || err.toString()}`);
     }
   },
   deleteComponentFromLibrary: async (componentId) => {
-    const state = get();
-    if (!state.currentWorkspace) return;
-    const path = `${state.currentWorkspace.path}/components/${componentId}.json`;
     try {
+      const componentsDir = await invoke<string>('get_global_components_dir');
+      const path = `${componentsDir}/${componentId}.json`;
       await invoke('delete_file', { path });
       await get().loadLibrary();
     } catch (err) {
