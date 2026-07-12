@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../../../store/useAppStore';
-import { calculateSchedules } from '../../../store/scheduler';
 
 export const useNodeAnimation = (nodeId: string) => {
   const [animState, setAnimState] = useState({
@@ -26,12 +25,7 @@ export const useNodeAnimation = (nodeId: string) => {
       let nodeActive = false;
 
       try {
-        const schedules = calculateSchedules(
-          state.logicalData.sequences, 
-          state.visualData.timelines, 
-          state.logicalData.edges, 
-          state.logicalData.nodes
-        );
+        const schedules = state.schedules;
 
         for (const seq of state.logicalData.sequences) {
           const edge = state.logicalData.edges.find((e: any) => e.id === seq.edgeId);

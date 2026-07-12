@@ -1,7 +1,5 @@
 import { useEffect, useState, useMemo, RefObject } from 'react';
 import { useAppStore } from '../../../store/useAppStore';
-import { calculateSchedules } from '../../../store/scheduler';
-
 export const useEdgeAnimation = (edgeId: string, pathRef: RefObject<SVGPathElement | null>) => {
   const logicalData = useAppStore((s) => s.logicalData);
   const selectedSequenceId = useAppStore((s) => s.selectedSequenceId);
@@ -23,12 +21,7 @@ export const useEdgeAnimation = (edgeId: string, pathRef: RefObject<SVGPathEleme
         return;
       }
 
-      const schedules = calculateSchedules(
-        state.logicalData.sequences, 
-        state.visualData.timelines, 
-        state.logicalData.edges, 
-        state.logicalData.nodes
-      );
+      const schedules = state.schedules;
 
       let activeSeq = null;
       for (const seq of seqsForEdge) {

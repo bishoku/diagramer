@@ -8,17 +8,47 @@ import { createTimelineSlice } from './slices/timelineSlice';
 import { createStudioSlice } from './slices/studioSlice';
 import { createHistorySlice } from './slices/historySlice';
 
-export const useAppStore = create<AppState>()((...a) => ({
-  ...createWorkspaceSlice(...a),
-  ...createCanvasSlice(...a),
-  ...createTimelineSlice(...a),
-  ...createStudioSlice(...a),
-  ...createHistorySlice(...a),
+import { calculateSchedules } from './scheduler';
 
-  // Phase 2 Canvas Initial State
-  logicalData: { nodes: [], edges: [], sequences: [] },
-  visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, timelines: {} }
-}));
+export const useAppStore = create<AppState>()((set, get, store) => {
+  const wrappedSet: typeof set = (partial, replace) => {
+    set((state) => {
+      const nextState = typeof partial === 'function' ? (partial as Function)(state) : partial;
+      
+      const logicalChanged = nextState.logicalData !== undefined && nextState.logicalData !== state.logicalData;
+      const timelinesChanged = nextState.visualData !== undefined && 
+                               nextState.visualData.timelines !== undefined && 
+                               nextState.visualData.timelines !== state.visualData.timelines;
+
+      if (logicalChanged || timelinesChanged) {
+        const mergedLogical = nextState.logicalData !== undefined ? nextState.logicalData : state.logicalData;
+        const mergedVisual = nextState.visualData !== undefined ? nextState.visualData : state.visualData;
+        nextState.schedules = calculateSchedules(
+          mergedLogical.sequences || [],
+          mergedVisual.timelines || {},
+          mergedLogical.edges || [],
+          mergedLogical.nodes || []
+        );
+      }
+      return nextState;
+    }, replace as any);
+  };
+
+  const a: [any, any, any] = [wrappedSet, get, store];
+
+  return {
+    ...createWorkspaceSlice(...a),
+    ...createCanvasSlice(...a),
+    ...createTimelineSlice(...a),
+    ...createStudioSlice(...a),
+    ...createHistorySlice(...a),
+
+    // Phase 2 Canvas Initial State
+    logicalData: { nodes: [], edges: [], sequences: [] },
+    visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, timelines: {} },
+    schedules: {}
+  };
+});
 
 // ── Shared Save Logic ─────────────────────────────────────────────────────
 let isSavingLock = false;

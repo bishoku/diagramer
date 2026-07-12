@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Terminal, Activity, ArrowRight, ArrowLeft, ArrowRightLeft, CornerDownRight } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
-import { calculateSchedules } from '../../store/scheduler';
 
 export const SidebarRight: React.FC = () => {
   const logicalData = useAppStore((s) => s.logicalData);
@@ -11,6 +10,7 @@ export const SidebarRight: React.FC = () => {
   const activeSequenceIds = useAppStore((s) => s.activeSequenceIds);
   const selectedSequenceId = useAppStore((s) => s.selectedSequenceId);
   const setSelectedSequenceId = useAppStore((s) => s.setSelectedSequenceId);
+  const schedules = useAppStore((s) => s.schedules);
 
   const activeRowRef = useRef<HTMLDivElement>(null);
 
@@ -21,9 +21,6 @@ export const SidebarRight: React.FC = () => {
     }
     return a.id.localeCompare(b.id);
   });
-
-  // Calculate schedules
-  const schedules = calculateSchedules(logicalData.sequences, visualData.timelines, logicalData.edges, logicalData.nodes);
 
   // Auto-scroll active sequence into view
   const activeIdsString = activeSequenceIds.join(',');

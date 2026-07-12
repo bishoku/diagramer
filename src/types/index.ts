@@ -144,6 +144,7 @@ export interface AppState {
   currentTime: number; // Current playback playhead time in ms
   playbackRate: number; // Rate: 0.5, 1, 1.5, 2
   activeSequenceIds: string[]; // Active animating sequence IDs
+  schedules: Record<string, { start: number; end: number }>; // Pre-calculated schedules
   selectedSequenceId: string | null; // Selected/focused sequence ID
 
   // Dynamic Layout State (Splitters & Toggle Sidebars)

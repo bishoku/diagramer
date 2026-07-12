@@ -5,7 +5,6 @@ import {
   Play, Pause, Square
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
-import { calculateSchedules } from '../../store/scheduler';
 import { usePlayheadScrub } from '../timeline/usePlayheadScrub';
 import { useTimingBarDrag } from '../timeline/useTimingBarDrag';
 import { TimelineRuler } from '../timeline/TimelineRuler';
@@ -19,6 +18,29 @@ const TimeReadout: React.FC<{ maxTime: number }> = ({ maxTime }) => {
   return <>{currentTime.toFixed(0)}ms / {maxTime}ms</>;
 };
 
+const CollapsedPlaybackSlider: React.FC<{ maxTime: number }> = ({ maxTime }) => {
+  const currentTime = useAppStore((state) => state.currentTime);
+  const setCurrentTime = useAppStore((state) => state.setCurrentTime);
+  return (
+    <div className="px-4 py-1.5 flex items-center gap-3 bg-slate-50/30 dark:bg-slate-900/40 border-t border-slate-150 dark:border-slate-850">
+      <span className="text-[10px] font-mono text-slate-550 dark:text-slate-400">
+        {currentTime.toFixed(0)}ms
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={maxTime}
+        value={currentTime}
+        onChange={(e) => setCurrentTime(Number(e.target.value))}
+        className="flex-1 h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 dark:accent-indigo-500"
+      />
+      <span className="text-[10px] font-mono text-slate-550 dark:text-slate-400">
+        {maxTime}ms
+      </span>
+    </div>
+  );
+};
+
 export const TimelinePanel: React.FC = () => {
   // Selective Zustand selectors to completely eliminate playback re-renders
   const logicalData = useAppStore((s) => s.logicalData);
@@ -27,7 +49,7 @@ export const TimelinePanel: React.FC = () => {
   const selectedSequenceId = useAppStore((s) => s.selectedSequenceId);
   const theme = useAppStore((s) => s.theme);
   const timelineOpen = useAppStore((s: any) => s.timelineOpen);
-  const currentTime = useAppStore((s) => s.currentTime);
+  const schedules = useAppStore((s) => s.schedules);
 
   const setCurrentTime = useAppStore((s) => s.setCurrentTime);
   const setSelectedSequenceId = useAppStore((s) => s.setSelectedSequenceId);
@@ -49,9 +71,6 @@ export const TimelinePanel: React.FC = () => {
 
   const trackAreaRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
-
-  // Calculate schedules
-  const schedules = calculateSchedules(logicalData.sequences, visualData.timelines, logicalData.edges, logicalData.nodes);
 
   // Find max simulation time
   const maxTime = Math.max(
@@ -426,22 +445,7 @@ export const TimelinePanel: React.FC = () => {
 
       {/* Video Slider when timeline tracks are closed */}
       {!timelineOpen && (
-        <div className="px-4 py-1.5 flex items-center gap-3 bg-slate-50/30 dark:bg-slate-900/40 border-t border-slate-150 dark:border-slate-850">
-          <span className="text-[10px] font-mono text-slate-550 dark:text-slate-400">
-            {currentTime.toFixed(0)}ms
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={maxTime}
-            value={currentTime}
-            onChange={(e) => setCurrentTime(Number(e.target.value))}
-            className="flex-1 h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 dark:accent-indigo-500"
-          />
-          <span className="text-[10px] font-mono text-slate-550 dark:text-slate-400">
-            {maxTime}ms
-          </span>
-        </div>
+        <CollapsedPlaybackSlider maxTime={maxTime} />
       )}
 
       {/* Tooltip Internal Process Modal */}
