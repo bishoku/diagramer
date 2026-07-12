@@ -61,14 +61,7 @@ export const NodeRegistry: Record<string, NodeDefinition> = {
     colorClass: 'text-cyan-500',
     category: 'standard'
   },
-  message_queue: {
-    type: 'message_queue', // sidebar uses message_queue
-    name: { en: 'Queue', tr: 'Kuyruk (Queue)' },
-    defaultName: 'Queue',
-    icon: <ArrowRightLeft className="w-4 h-4" />,
-    colorClass: 'text-purple-500',
-    category: 'standard'
-  },
+
   queue: {
     type: 'queue', // BaseNode used queue
     name: { en: 'Queue', tr: 'Kuyruk (Queue)' },
