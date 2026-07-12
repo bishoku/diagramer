@@ -1171,19 +1171,52 @@ export const generateStandaloneHtml = (
 
           if (showParticle && pathEl) {
             const pathLen = pathEl.getTotalLength();
-            let pointProgress = s.direction === 'reverse' ? (1 - actualProgress) : actualProgress;
+            let pointProgress = seq.direction === 'reverse' ? (1 - actualProgress) : actualProgress;
             
             // Check if getPointAtLength is supported
             if (pathEl.getPointAtLength) {
               const pt = pathEl.getPointAtLength(pointProgress * pathLen);
-              const particle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-              particle.setAttribute('cx', pt.x);
-              particle.setAttribute('cy', pt.y);
-              particle.setAttribute('r', '6');
-              particle.setAttribute('fill', '#818cf8');
-              particle.setAttribute('class', 'sim-particle');
-              particle.setAttribute('filter', 'drop-shadow(0 0 4px #4f46e5)');
-              svg.appendChild(particle);
+              const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              group.setAttribute('class', 'sim-particle');
+              group.setAttribute('style', 'pointer-events: none;');
+
+              // Glow ring
+              const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              glow.setAttribute('cx', pt.x);
+              glow.setAttribute('cy', pt.y);
+              glow.setAttribute('r', '16');
+              glow.setAttribute('fill', '#818cf8');
+              glow.setAttribute('opacity', '0.3');
+              group.appendChild(glow);
+
+              // Main billiard ball body
+              const ball = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              ball.setAttribute('cx', pt.x);
+              ball.setAttribute('cy', pt.y);
+              ball.setAttribute('r', '11');
+              ball.setAttribute('fill', '#4f46e5');
+              group.appendChild(ball);
+
+              // White center stripe/circle
+              const center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              center.setAttribute('cx', pt.x);
+              center.setAttribute('cy', pt.y);
+              center.setAttribute('r', '6.5');
+              center.setAttribute('fill', '#ffffff');
+              group.appendChild(center);
+
+              // Step Number Text
+              const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              text.setAttribute('x', pt.x);
+              text.setAttribute('y', pt.y);
+              text.setAttribute('text-anchor', 'middle');
+              text.setAttribute('dominant-baseline', 'central');
+              text.setAttribute('fill', '#1e293b');
+              text.setAttribute('style', 'font-size: 8.5px; font-weight: 900; font-family: sans-serif; user-select: none;');
+              text.textContent = seq.stepNumber;
+              group.appendChild(text);
+
+              svg.appendChild(group);
             }
           }
 

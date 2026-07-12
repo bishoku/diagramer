@@ -116,11 +116,11 @@ export const TimelinePanel: React.FC = () => {
         const nextTime = state.currentTime + delta * state.playbackRate;
 
         if (nextTime >= maxTime) {
-          state.stopPlayback();
-          return;
+          state.setCurrentTime(0);
+          previousTime = timestamp;
+        } else {
+          state.setCurrentTime(nextTime);
         }
-
-        state.setCurrentTime(nextTime);
       }
 
       previousTime = timestamp;

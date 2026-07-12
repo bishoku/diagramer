@@ -3,7 +3,7 @@ import { useAppStore } from '../../../store/useAppStore';
 
 export const useCanvasShortcuts = (
   closeMenu: () => void,
-  setPendingConnection: (val: any) => void
+  closePopover: () => void
 ) => {
   const cancelDrag = useAppStore((s) => s.cancelDrag);
   const undo = useAppStore((s) => s.undo);
@@ -16,7 +16,7 @@ export const useCanvasShortcuts = (
       }
       if (e.key === 'Escape') {
         closeMenu();
-        setPendingConnection(null);
+        closePopover();
       }
 
       // Undo hotkey
@@ -33,5 +33,5 @@ export const useCanvasShortcuts = (
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrag, closeMenu, undo, redo, setPendingConnection]);
+  }, [cancelDrag, closeMenu, undo, redo, closePopover]);
 };

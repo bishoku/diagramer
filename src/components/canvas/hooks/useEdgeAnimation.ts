@@ -6,6 +6,7 @@ export const useEdgeAnimation = (edgeId: string, pathRef: RefObject<SVGPathEleme
 
   const [particlePos, setParticlePos] = useState<{ x: number; y: number } | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [activeStepNumber, setActiveStepNumber] = useState<number | null>(null);
 
   const seqsForEdge = useMemo(() => logicalData.sequences.filter((s) => s.edgeId === edgeId), [logicalData.sequences, edgeId]);
   const isSelected = useMemo(() => seqsForEdge.some((s) => s.id === selectedSequenceId), [seqsForEdge, selectedSequenceId]);
@@ -37,6 +38,9 @@ export const useEdgeAnimation = (edgeId: string, pathRef: RefObject<SVGPathEleme
         if (prev !== newIsAnimating) return newIsAnimating;
         return prev;
       });
+
+      const nextStepNum = activeSeq ? activeSeq.stepNumber : null;
+      setActiveStepNumber((prev) => (prev !== nextStepNum ? nextStepNum : prev));
 
       const pathEl = pathRef.current;
       if (!pathEl || !newIsAnimating || !activeSeq) {
@@ -98,5 +102,6 @@ export const useEdgeAnimation = (edgeId: string, pathRef: RefObject<SVGPathEleme
     isSelected,
     isAsync,
     seqsForEdge,
+    activeStepNumber,
   };
 };

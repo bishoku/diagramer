@@ -366,25 +366,48 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     const state = get();
     const { nodes, edges } = state.logicalData;
 
-    const rfNodes = nodes.map((node) => {
+    // Helper map to find node parentIds
+    const nodeParentMap = new Map<string, string | undefined>(
+      nodes.map(n => [n.id, n.parentId])
+    );
+
+    // 1. Only include top-level nodes for Dagre (ignore children of sections)
+    const topLevelNodes = nodes.filter(n => !n.parentId);
+
+    const rfNodes = topLevelNodes.map((node) => {
       const visual = state.visualData.layoutNodes[node.id] || {};
       return {
         id: node.id,
         position: { x: visual.x ?? 0, y: visual.y ?? 0 },
         data: { name: node.name, type: node.type },
-        width: visual.width ?? 224,
-        height: visual.height ?? 52,
+        width: visual.width ?? (node.type === 'section' ? 400 : 224),
+        height: visual.height ?? (node.type === 'section' ? 300 : 52),
       };
     });
 
-    const rfEdges = edges.map((edge) => ({
-      id: edge.id,
-      source: edge.from,
-      target: edge.to,
-    }));
+    // 2. Map edges so that if source/target is inside a section, it points to the section itself.
+    // Discard edges where both source and target map to the same section.
+    const mappedEdges: { id: string; source: string; target: string }[] = [];
+    edges.forEach((edge) => {
+      const parentSrc = nodeParentMap.get(edge.from);
+      const parentTgt = nodeParentMap.get(edge.to);
 
-    const layouted = getLayoutedElements(rfNodes, rfEdges as any, direction);
+      const actualSource = parentSrc || edge.from;
+      const actualTarget = parentTgt || edge.to;
 
+      if (actualSource !== actualTarget) {
+        mappedEdges.push({
+          id: edge.id,
+          source: actualSource,
+          target: actualTarget,
+        });
+      }
+    });
+
+    // 3. Calculate layout
+    const layouted = getLayoutedElements(rfNodes, mappedEdges as any, direction);
+
+    // 4. Update coordinates only for the top-level nodes that Dagre processed
     const layoutNodes = { ...state.visualData.layoutNodes };
     layouted.forEach((node) => {
       layoutNodes[node.id] = {
@@ -394,14 +417,22 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
       };
     });
 
-    // Update edge connection ports based on layout direction
+    // Update edge connection ports based on layout direction (excluding internal section edges)
     const fromPort: 'bottom' | 'right' = direction === 'TB' ? 'bottom' : 'right';
     const toPort: 'top' | 'left' = direction === 'TB' ? 'top' : 'left';
-    const updatedEdges = edges.map((edge) => ({
-      ...edge,
-      fromPort,
-      toPort
-    }));
+    const updatedEdges = edges.map((edge) => {
+      const parentSrc = nodeParentMap.get(edge.from);
+      const parentTgt = nodeParentMap.get(edge.to);
+      if (parentSrc && parentTgt && parentSrc === parentTgt) {
+        // Internal to a section, keep original ports
+        return edge;
+      }
+      return {
+        ...edge,
+        fromPort,
+        toPort
+      };
+    });
 
     set({
       logicalData: { ...state.logicalData, edges: updatedEdges },

@@ -204,13 +204,13 @@ export const SidebarLeft: React.FC = () => {
                   className={`p-2.5 border rounded-xl flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all group
                     ${pendingDrop?.type === comp.type 
                       ? 'bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/50 dark:border-indigo-500/40 shadow-md ring-2 ring-indigo-500/30' 
-                      : 'bg-white dark:bg-slate-955 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
+                      : 'bg-white dark:bg-slate-950 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
                     }`}
                 >
                   <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group-hover:scale-105 transition-transform">
                     {comp.icon}
                   </div>
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-350">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     {comp.name}
                   </span>
                 </div>
@@ -261,7 +261,7 @@ export const SidebarLeft: React.FC = () => {
                   className={`p-2.5 border rounded-xl flex items-center justify-between cursor-grab active:cursor-grabbing transition-all group
                     ${pendingDrop?.type === comp.componentId 
                       ? 'bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/50 dark:border-indigo-500/40 shadow-md ring-2 ring-indigo-500/30' 
-                      : 'bg-white dark:bg-slate-955 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
+                      : 'bg-white dark:bg-slate-950 border-slate-200/60 dark:border-slate-850 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 hover:shadow-sm hover:scale-[0.99]'
                     }`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -272,7 +272,7 @@ export const SidebarLeft: React.FC = () => {
                         height={comp.dimensions.height} 
                       />
                     </div>
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-350 truncate">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
                       {comp.name}
                     </span>
                   </div>

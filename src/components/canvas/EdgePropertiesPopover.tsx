@@ -15,13 +15,16 @@ interface EdgePropertiesPopoverProps {
     tooltipText: string;
     tooltipDuration: number;
     description?: string;
+    isNew?: boolean;
   } | null;
   onClose: () => void;
+  onCancel?: () => void;
 }
 
 export const EdgePropertiesPopover: React.FC<EdgePropertiesPopoverProps> = ({
   properties,
   onClose,
+  onCancel,
 }) => {
   const { 
     theme, 
@@ -101,7 +104,7 @@ export const EdgePropertiesPopover: React.FC<EdgePropertiesPopoverProps> = ({
           {theme === 'dark' ? 'Bağlantı Özellikleri' : 'Connection Properties'}
         </span>
         <button 
-          onClick={onClose}
+          onClick={onCancel || onClose}
           className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer text-slate-400"
         >
           <X className="w-3.5 h-3.5" />
@@ -267,7 +270,7 @@ export const EdgePropertiesPopover: React.FC<EdgePropertiesPopoverProps> = ({
       {/* Action Buttons */}
       <div className="flex gap-2 justify-end mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
         <button
-          onClick={onClose}
+          onClick={onCancel || onClose}
           className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors font-sans"
         >
           {theme === 'dark' ? 'Vazgeç' : 'Cancel'}

@@ -30,7 +30,7 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
   const pathRef = useRef<SVGPathElement>(null);
 
   // Use our custom hook to abstract animation calculation
-  const { particlePos, isAnimating, isSelected, isAsync, seqsForEdge } = useEdgeAnimation(id, pathRef);
+  const { particlePos, isAnimating, isSelected, isAsync, seqsForEdge, activeStepNumber } = useEdgeAnimation(id, pathRef);
 
   // Build step labels string, e.g. "1- [HTTP]" or "1, 2- [gRPC]"
   const stepNums = seqsForEdge
@@ -76,24 +76,51 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
         style={isEdgeActive ? { filter: 'drop-shadow(0 0 3px rgba(99, 102, 241, 0.6))' } : undefined}
       />
       
-      {/* Playback particle dot (Indigo themed to match exported simulation style) */}
+      {/* Playback particle dot (Billiard ball style with sequence number) */}
       {particlePos && (
-        <g>
+        <g style={{ pointerEvents: 'none' }}>
           {/* Outer glow ring */}
           <circle
             cx={particlePos.x}
             cy={particlePos.y}
-            r={10}
+            r={16}
             fill="#818cf8"
-            style={{ opacity: 0.4 }}
+            style={{ opacity: 0.3 }}
           />
-          {/* Inner solid particle */}
+          {/* Main Billiard Ball Body */}
           <circle
             cx={particlePos.x}
             cy={particlePos.y}
-            r={6}
-            fill="#818cf8"
+            r={11}
+            fill="#4f46e5"
           />
+          {/* Billiard Ball Center (White Stripe/Circle) */}
+          {activeStepNumber !== null && (
+            <>
+              <circle
+                cx={particlePos.x}
+                cy={particlePos.y}
+                r={6.5}
+                fill="#ffffff"
+              />
+              {/* Sequence Step Number */}
+              <text
+                x={particlePos.x}
+                y={particlePos.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="#1e293b"
+                style={{
+                  fontSize: '8.5px',
+                  fontWeight: 900,
+                  fontFamily: 'sans-serif',
+                  userSelect: 'none'
+                }}
+              >
+                {activeStepNumber}
+              </text>
+            </>
+          )}
         </g>
       )}
 

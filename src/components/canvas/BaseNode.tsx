@@ -110,14 +110,14 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
       )}
 
       {/* Node Card Container */}
-      <div className={`px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex items-center gap-3 w-full h-full shadow-md dark:shadow-xl transition-all duration-200 ${
+      <div className={`px-4 py-3 rounded-xl border-2 text-slate-800 dark:text-slate-100 flex items-center gap-3 w-full h-full shadow-md dark:shadow-xl transition-all duration-200 ${
         isProcessing
-          ? 'border-emerald-500 dark:border-emerald-500 scale-[1.02] shadow-emerald-100 dark:shadow-emerald-950/40 ring-4 ring-emerald-500/20 animate-pulse'
+          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 scale-[1.02] shadow-emerald-100 dark:shadow-emerald-950/40 ring-4 ring-emerald-500/20 animate-pulse'
           : isNodeActive
-          ? 'border-indigo-500 dark:border-indigo-400 scale-[1.02] shadow-indigo-100 dark:shadow-indigo-950/40 ring-4 ring-indigo-500/20'
+          ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 dark:border-indigo-400 scale-[1.02] shadow-indigo-100 dark:shadow-indigo-950/40 ring-4 ring-indigo-500/20'
           : selected 
-          ? `${style.border} scale-[1.02] ${style.ring} ring-4 ring-indigo-500/10` 
-          : `${style.border} ${style.borderHover}`
+          ? `bg-white dark:bg-slate-900 ${style.border} scale-[1.02] ${style.ring} ring-4 ring-indigo-500/10` 
+          : `bg-white dark:bg-slate-900 ${style.border} ${style.borderHover}`
       }`}>
         
         {/* Handles */}

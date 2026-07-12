@@ -82,23 +82,25 @@ export const NodePropertiesPopover: React.FC<NodePropertiesPopoverProps> = ({
         </div>
 
         {/* Type Input */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-sans">
-            {theme === 'dark' ? 'Bileşen Tipi' : 'Type'}
-          </label>
-          <select
-            value={formType}
-            onChange={(e) => setFormType(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer font-sans"
-          >
-            <option value="client">{theme === 'dark' ? 'İstemci (Client)' : 'Client'}</option>
-            <option value="gateway">API Gateway</option>
-            <option value="server">{theme === 'dark' ? 'Uygulama Sunucusu' : 'App Server'}</option>
-            <option value="database">{theme === 'dark' ? 'Veritabanı (SQL)' : 'Database'}</option>
-            <option value="cache">{theme === 'dark' ? 'Önbellek (Redis)' : 'Cache Store'}</option>
-            <option value="queue">{theme === 'dark' ? 'Mesaj Kuyruğu' : 'Message Queue'}</option>
-          </select>
-        </div>
+        {properties.type !== 'section' && (
+          <div className="flex flex-col gap-1">
+            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-sans">
+              {theme === 'dark' ? 'Bileşen Tipi' : 'Type'}
+            </label>
+            <select
+              value={formType}
+              onChange={(e) => setFormType(e.target.value)}
+              className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer font-sans"
+            >
+              <option value="client">{theme === 'dark' ? 'İstemci (Client)' : 'Client'}</option>
+              <option value="gateway">API Gateway</option>
+              <option value="server">{theme === 'dark' ? 'Uygulama Sunucusu' : 'App Server'}</option>
+              <option value="database">{theme === 'dark' ? 'Veritabanı (SQL)' : 'Database'}</option>
+              <option value="cache">{theme === 'dark' ? 'Önbellek (Redis)' : 'Cache Store'}</option>
+              <option value="queue">{theme === 'dark' ? 'Mesaj Kuyruğu' : 'Message Queue'}</option>
+            </select>
+          </div>
+        )}
 
         {/* Theme Color Selector */}
         <div className="flex flex-col gap-1">

@@ -33,12 +33,18 @@ export const useNodeAnimation = (nodeId: string) => {
 
           const sched = schedules[seq.id];
           if (!sched) continue;
-          if (currentTime < sched.start || currentTime > sched.end) continue;
+
+          const timing = state.visualData.timelines[seq.id];
+          const ipDuration = (!seq.isRoundTrip && timing?.internalProcess) 
+            ? (timing.internalProcess.duration ?? 1000) 
+            : 0;
+
+          const activeEnd = sched.end + ipDuration;
+          if (currentTime < sched.start || currentTime > activeEnd) continue;
 
           const srcId = seq.direction === 'reverse' ? edge.to : edge.from;
           const tgtId = seq.direction === 'reverse' ? edge.from : edge.to;
           const elapsed = currentTime - sched.start;
-          const timing = state.visualData.timelines[seq.id];
           const stepDuration = timing?.duration ?? 1000;
 
           if (seq.isRoundTrip) {

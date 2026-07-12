@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   ReactFlowProvider,
   useReactFlow,
   useNodesState,
@@ -28,7 +27,6 @@ import { ContextMenu } from './ContextMenu';
 import { NodePropertiesPopover } from './NodePropertiesPopover';
 import { EdgePropertiesPopover } from './EdgePropertiesPopover';
 import { ClearCanvasModal } from './ClearCanvasModal';
-import { ConnectionConfirmModal } from './ConnectionConfirmModal';
 
 import {
   useCanvasSync,
@@ -73,15 +71,7 @@ const FlowWrapper: React.FC = () => {
   } | null>(null);
 
   // ── Pending Connection Modal State ─────────────────────────────────────────
-  const [pendingConnection, setPendingConnection] = useState<{
-    rfConnection: Connection;
-    logicalFrom: string;
-    logicalTo: string;
-    logicalFromPort: string;
-    logicalToPort: string;
-  } | null>(null);
   const dragStartRef = useRef<{ nodeId: string; handleId: string } | null>(null);
-  const [stepOrderVal, setStepOrderVal] = useState<number>(1);
   const [showClearModal, setShowClearModal] = useState(false);
 
   // ── Floating Properties Modal States ───────────────────────────────────────
@@ -106,14 +96,27 @@ const FlowWrapper: React.FC = () => {
     tooltipText: string;
     tooltipDuration: number;
     description?: string;
+    isNew?: boolean;
   } | null>(null);
 
   const closeMenu = useCallback(() => setMenu(null), []);
 
+  const handleCancelActiveEdge = useCallback(() => {
+    setActiveEdgeProperties((current) => {
+      if (current) {
+        if (current.isNew) {
+          deleteEdge(current.id);
+          setRfEdges((eds) => eds.filter((e) => e.id !== current.id));
+        }
+      }
+      return null;
+    });
+  }, [deleteEdge, setRfEdges]);
+
   // ── Custom Hooks ──────────────────────────────────────────────────────────
   const { visualDataRef } = useCanvasSync(setRfNodes, setRfEdges);
   useCanvasDrop(wrapperRef, screenToFlowPosition, setRfNodes);
-  useCanvasShortcuts(closeMenu, setPendingConnection);
+  useCanvasShortcuts(closeMenu, handleCancelActiveEdge);
   const { onNodeDragStop } = useSectionDrag();
 
   // ── View Interactions ─────────────────────────────────────────────────────
@@ -242,8 +245,6 @@ const FlowWrapper: React.FC = () => {
         ? Math.max(...logicalData.sequences.map(s => s.stepNumber)) + 1 
         : 1;
         
-      setStepOrderVal(nextStepNum);
-      
       let logicalFrom = connection.source;
       let logicalTo = connection.target;
       let logicalFromPort = connection.sourceHandle ?? 'right';
@@ -258,15 +259,59 @@ const FlowWrapper: React.FC = () => {
         }
       }
 
-      setPendingConnection({
-        rfConnection: connection,
-        logicalFrom,
-        logicalTo,
-        logicalFromPort,
-        logicalToPort,
+      const edgeId = `edge-${logicalFrom}-${logicalTo}-${Date.now()}`;
+      const newEdge: Edge = {
+        id: edgeId,
+        type: 'customEdge',
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle ?? undefined,
+        targetHandle: connection.targetHandle ?? undefined,
+      };
+      
+      setRfEdges((eds) => addEdge(newEdge, eds));
+      
+      zustandAddEdge({
+        id: edgeId,
+        from: logicalFrom,
+        to: logicalTo,
+        fromPort: logicalFromPort as 'top' | 'right' | 'bottom' | 'left',
+        toPort: logicalToPort as 'top' | 'right' | 'bottom' | 'left',
+        isAsync: false,
+      });
+
+      const seqId = `seq-${Date.now()}`;
+      addSequenceStep(
+        {
+          id: seqId,
+          stepNumber: nextStepNum,
+          edgeId: edgeId,
+          isAsync: false,
+        },
+        {
+          sequenceId: seqId,
+          duration: 1000,
+          delay: 0,
+        }
+      );
+
+      // Open the EdgePropertiesPopover immediately in the center of the screen
+      setActiveEdgeProperties({
+        id: edgeId,
+        x: window.innerWidth / 2 - 160,
+        y: window.innerHeight / 2 - 210,
+        protocol: '',
+        isAsync: false,
+        stepNumber: nextStepNum,
+        duration: 1000,
+        delay: 0,
+        tooltipText: '',
+        tooltipDuration: 1000,
+        description: '',
+        isNew: true
       });
     },
-    []
+    [setRfEdges, zustandAddEdge, addSequenceStep]
   );
 
   const onReconnect = useCallback(
@@ -279,54 +324,6 @@ const FlowWrapper: React.FC = () => {
     },
     [setRfEdges, zustandReconnectEdge]
   );
-
-  const confirmConnection = useCallback(() => {
-    if (!pendingConnection) return;
-    const { rfConnection, logicalFrom, logicalTo, logicalFromPort, logicalToPort } = pendingConnection;
-    if (!rfConnection.source || !rfConnection.target) return;
-    
-    const edgeId = `edge-${logicalFrom}-${logicalTo}-${Date.now()}`;
-    const newEdge: Edge = {
-      id: edgeId,
-      type: 'customEdge',
-      source: rfConnection.source,
-      target: rfConnection.target,
-      sourceHandle: rfConnection.sourceHandle ?? undefined,
-      targetHandle: rfConnection.targetHandle ?? undefined,
-    };
-    
-    setRfEdges((eds) => addEdge(newEdge, eds));
-    
-    zustandAddEdge({
-      id: edgeId,
-      from: logicalFrom,
-      to: logicalTo,
-      fromPort: logicalFromPort as 'top' | 'right' | 'bottom' | 'left',
-      toPort: logicalToPort as 'top' | 'right' | 'bottom' | 'left',
-      isAsync: false,
-    });
-
-    const seqId = `seq-${Date.now()}`;
-    addSequenceStep(
-      {
-        id: seqId,
-        stepNumber: stepOrderVal,
-        edgeId: edgeId,
-        isAsync: false,
-      },
-      {
-        sequenceId: seqId,
-        duration: 1000,
-        delay: 0,
-      }
-    );
-
-    setPendingConnection(null);
-  }, [pendingConnection, stepOrderVal, setRfEdges, zustandAddEdge, addSequenceStep]);
-
-  const cancelConnection = useCallback(() => {
-    setPendingConnection(null);
-  }, []);
 
   // ── Viewport ───────────────────────────────────────────────────────────────
   const onMoveEnd = useCallback(
@@ -405,13 +402,7 @@ const FlowWrapper: React.FC = () => {
     setActiveEdgeProperties(null);
   }, [closeMenu, setSelectedSequenceId]);
 
-  // Lookup node names for the connection modal label
-  const connectionSrcName = pendingConnection
-    ? (rfNodes.find(n => n.id === pendingConnection.logicalFrom)?.data as any)?.name ?? pendingConnection.logicalFrom
-    : '';
-  const connectionDstName = pendingConnection
-    ? (rfNodes.find(n => n.id === pendingConnection.logicalTo)?.data as any)?.name ?? pendingConnection.logicalTo
-    : '';
+
 
   // Callback from Node properties to update local React Flow view state immediately
   const handleApplyNodeProperties = useCallback((id: string, name: string, type: string, themeColor: string) => {
@@ -474,17 +465,6 @@ const FlowWrapper: React.FC = () => {
           gap={16}
         />
         <Controls className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-md font-sans" />
-        <MiniMap 
-          position="bottom-left" 
-          style={{ 
-            background: theme === 'dark' ? '#0f172a' : '#ffffff', 
-            border: theme === 'dark' ? '1px solid #1e293b' : '1px solid #e2e8f0', 
-            borderRadius: '12px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-          }} 
-          zoomable 
-          pannable 
-        />
       </ReactFlow>
 
       {/* Floating Clear Canvas Button (Bottom Right) */}
@@ -510,6 +490,7 @@ const FlowWrapper: React.FC = () => {
       <EdgePropertiesPopover
         properties={activeEdgeProperties}
         onClose={() => setActiveEdgeProperties(null)}
+        onCancel={handleCancelActiveEdge}
       />
 
       {/* Clear Canvas Confirmation Modal */}
@@ -529,17 +510,6 @@ const FlowWrapper: React.FC = () => {
         menu={menu}
         onClose={closeMenu}
         onDelete={handleDeleteElement}
-      />
-
-      {/* Step Order Popup Modal on Connection */}
-      <ConnectionConfirmModal
-        pendingConnection={pendingConnection}
-        stepOrderVal={stepOrderVal}
-        setStepOrderVal={setStepOrderVal}
-        connectionSrcName={connectionSrcName}
-        connectionDstName={connectionDstName}
-        onConfirm={confirmConnection}
-        onCancel={cancelConnection}
       />
     </div>
   );
