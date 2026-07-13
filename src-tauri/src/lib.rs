@@ -338,7 +338,11 @@ fn read_text_file(path: String) -> Result<String, String> {
 fn delete_file(path: String) -> Result<(), String> {
     let file_path = Path::new(&path);
     if file_path.exists() {
-        fs::remove_file(file_path).map_err(|e| format!("Failed to delete file: {}", e))?;
+        if file_path.is_dir() {
+            fs::remove_dir_all(file_path).map_err(|e| format!("Failed to delete directory: {}", e))?;
+        } else {
+            fs::remove_file(file_path).map_err(|e| format!("Failed to delete file: {}", e))?;
+        }
     }
     Ok(())
 }

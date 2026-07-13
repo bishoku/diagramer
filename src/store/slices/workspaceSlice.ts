@@ -39,6 +39,7 @@ export interface WorkspaceSlice {
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
   manualSave: () => Promise<void>;
+  deleteWorkspace: (path: string) => Promise<void>;
 }
 
 export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice> = (set, get) => ({
@@ -246,6 +247,19 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       console.error('Error saving diagram manually:', err);
     } finally {
       set({ isSaving: false });
+    }
+  },
+
+  deleteWorkspace: async (path: string) => {
+    try {
+      await StorageService.delete_workspace(path);
+      await get().fetchRecentWorkspaces();
+      if (get().currentWorkspace?.path === path) {
+        set({ currentWorkspace: null, currentDiagram: null });
+      }
+    } catch (err) {
+      console.error('Error deleting workspace:', err);
+      throw err;
     }
   }
 });

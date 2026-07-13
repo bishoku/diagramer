@@ -176,6 +176,7 @@ export interface AppState {
   loadWorkspace: (path: string) => Promise<WorkspaceMeta>;
   fetchRecentWorkspaces: () => Promise<void>;
   saveWorkspaceDetails: (name: string, description: string) => Promise<void>;
+  deleteWorkspace: (path: string) => Promise<void>;
   
   // Preferences Operations
   changeLanguage: (lang: Language) => Promise<void>;

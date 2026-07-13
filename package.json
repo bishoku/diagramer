@@ -19,6 +19,7 @@
     "dagre": "^0.8.5",
     "gif.js": "^0.2.0",
     "html-to-image": "^1.11.13",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

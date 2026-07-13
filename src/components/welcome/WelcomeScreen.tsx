@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { open } from '@tauri-apps/plugin-dialog';
-import { FolderPlus, FolderOpen, History, Info, AlertCircle, Compass, HardDrive, Settings, Globe, Moon, Sun, Check } from 'lucide-react';
+import { readFile } from '@tauri-apps/plugin-fs';
+import { FolderPlus, FolderOpen, History, Info, AlertCircle, Compass, HardDrive, Settings, Globe, Moon, Sun, Check, Download, Trash2, Upload, Edit } from 'lucide-react';
 import { translations } from '../../i18n/translations';
+import { isTauri, StorageService } from '../../services/storage';
+import { exportWorkspace, importWorkspace, ImportConflict, ConflictResolution } from '../../utils/workspaceZip';
 
 export const WelcomeScreen: React.FC = () => {
   const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
   const createWorkspace = useAppStore((s) => s.createWorkspace);
   const loadWorkspace = useAppStore((s) => s.loadWorkspace);
+  const deleteWorkspace = useAppStore((s) => s.deleteWorkspace);
   const fetchRecentWorkspaces = useAppStore((s) => s.fetchRecentWorkspaces);
   const language = useAppStore((s) => s.language);
   const theme = useAppStore((s) => s.theme);
@@ -21,6 +25,134 @@ export const WelcomeScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPrefModal, setShowPrefModal] = useState(false);
+
+  // Workspace Deletion/Import/Rename States
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<any | null>(null);
+  const [workspaceToRename, setWorkspaceToRename] = useState<any | null>(null);
+  const [renameName, setRenameName] = useState('');
+  const [importConflicts, setImportConflicts] = useState<ImportConflict[]>([]);
+  const [conflictResolver, setConflictResolver] = useState<{
+    resolve: (resolutions: Record<string, ConflictResolution>) => void;
+    reject: (err: any) => void;
+  } | null>(null);
+
+  const handleExport = async (ws: any) => {
+    try {
+      setLoading(true);
+      await exportWorkspace(ws, language);
+    } catch (err: any) {
+      setError(language === 'tr' ? `Dışa aktarım başarısız: ${err}` : `Export failed: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      let zipData: ArrayBuffer | Uint8Array;
+      
+      if (isTauri()) {
+        const selected = await open({
+          multiple: false,
+          filters: [{ name: 'Diagramer Project', extensions: ['dproj'] }],
+          title: language === 'tr' ? 'Proje Dosyası Seç' : 'Select Project File',
+        });
+        if (!selected || typeof selected !== 'string') return;
+        setLoading(true);
+        zipData = await readFile(selected);
+      } else {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.dproj';
+        input.onchange = async (e: any) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setLoading(true);
+          const reader = new FileReader();
+          reader.onload = async (event: any) => {
+            try {
+              zipData = event.target.result;
+              await runImport(zipData);
+            } catch (err: any) {
+              setError(err.message || err.toString());
+              setLoading(false);
+            }
+          };
+          reader.readAsArrayBuffer(file);
+        };
+        input.click();
+        return;
+      }
+      
+      await runImport(zipData);
+    } catch (err: any) {
+      setError(err.message || err.toString());
+      setLoading(false);
+    }
+  };
+
+  const runImport = async (zipData: ArrayBuffer | Uint8Array) => {
+    try {
+      const saveDiagramFn = async (path: string, logicalJson: string, visualJson: string) => {
+        await StorageService.save_diagram(path, logicalJson, visualJson);
+      };
+      
+      const resolveConflictsFn = (conflictsList: ImportConflict[]) => {
+        return new Promise<Record<string, ConflictResolution>>((resolve, reject) => {
+          setImportConflicts(conflictsList);
+          setConflictResolver({ resolve, reject });
+        });
+      };
+      
+      const ws = await importWorkspace(
+        zipData,
+        createWorkspace,
+        saveDiagramFn,
+        resolveConflictsFn,
+        language
+      );
+      
+      await loadWorkspace(ws.path);
+    } catch (err: any) {
+      setError(err.message || err.toString());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!workspaceToDelete) return;
+    setLoading(true);
+    try {
+      await deleteWorkspace(workspaceToDelete.path);
+      setWorkspaceToDelete(null);
+    } catch (err: any) {
+      setError(language === 'tr' ? `Silme başarısız: ${err}` : `Deletion failed: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRenameWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspaceToRename || !renameName.trim()) return;
+    setLoading(true);
+    try {
+      const updatedWs = {
+        ...workspaceToRename,
+        name: renameName.trim(),
+        lastAccessed: new Date().toISOString()
+      };
+      await StorageService.save_workspace(JSON.stringify(updatedWs));
+      await fetchRecentWorkspaces();
+      setWorkspaceToRename(null);
+      setRenameName('');
+    } catch (err: any) {
+      setError(language === 'tr' ? `Yeniden adlandırma başarısız: ${err}` : `Rename failed: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchRecentWorkspaces();
@@ -41,30 +173,6 @@ export const WelcomeScreen: React.FC = () => {
       setError(`${t.workspaceCreateError} ${err?.toString() || 'Unknown error'}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOpenExisting = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: t.openFromDirectory,
-      });
-      if (selected && typeof selected === 'string') {
-        setLoading(true);
-        setError(null);
-        try {
-          await loadWorkspace(selected);
-        } catch (err: any) {
-          setError(`${t.workspaceLoadError} ${err?.toString() || 'Unknown error'}`);
-        } finally {
-          setLoading(false);
-        }
-      }
-    } catch (err) {
-      console.error('Error opening directory:', err);
-      setError('Directory error.');
     }
   };
 
@@ -141,14 +249,16 @@ export const WelcomeScreen: React.FC = () => {
                 <History className="w-4 h-4" />
                 <span>{t.recentWorkspaces}</span>
               </div>
-              <button
-                onClick={handleOpenExisting}
-                disabled={loading}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors duration-200 hover:underline"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                {t.openFromDirectory}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleImport}
+                  disabled={loading}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors duration-200 hover:underline font-semibold"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {language === 'tr' ? 'İçeri Aktar (.dproj)' : 'Import (.dproj)'}
+                </button>
+              </div>
             </div>
 
             {recentWorkspaces.length === 0 ? (
@@ -162,14 +272,15 @@ export const WelcomeScreen: React.FC = () => {
             ) : (
               <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
                 {recentWorkspaces.map((ws) => (
-                  <button
-                    key={ws.id}
-                    onClick={() => handleLoadRecent(ws.path)}
-                    disabled={loading}
-                    className="w-full text-left p-3.5 bg-slate-100/30 dark:bg-slate-950/30 hover:bg-indigo-500/5 hover:border-indigo-500/30 border border-slate-200 dark:border-slate-800/60 rounded-xl transition-all duration-200 group flex items-center justify-between cursor-pointer"
+                  <div
+                    key={ws.path}
+                    className="w-full p-3 bg-slate-100/30 dark:bg-slate-950/30 hover:border-indigo-500/30 border border-slate-200/60 dark:border-slate-800/60 rounded-xl transition-all duration-200 group flex items-center justify-between"
                   >
-                    <div className="flex-1 min-w-0 pr-2">
-                      <div className="font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors text-sm truncate">
+                    <div 
+                      onClick={() => handleLoadRecent(ws.path)}
+                      className="flex-1 min-w-0 pr-2 cursor-pointer"
+                    >
+                      <div className="font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-650 dark:group-hover:text-indigo-300 transition-colors text-sm truncate">
                         {ws.name}
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
@@ -177,11 +288,44 @@ export const WelcomeScreen: React.FC = () => {
                         <span className="truncate" title={ws.path}>{formatPath(ws.path)}</span>
                       </div>
                     </div>
-                    <div className="text-right text-[10px] text-slate-500">
-                      <div className="font-medium">{language === 'tr' ? 'Son erişim' : 'Last access'}</div>
-                      <div className="mt-0.5 text-slate-400 dark:text-slate-500">{formatDate(ws.lastAccessed)}</div>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="text-right text-[10px] text-slate-550 hidden sm:block">
+                        <div className="font-medium">{language === 'tr' ? 'Son erişim' : 'Last access'}</div>
+                        <div className="mt-0.5 text-slate-400 dark:text-slate-500">{formatDate(ws.lastAccessed)}</div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            setWorkspaceToRename(ws);
+                            setRenameName(ws.name);
+                          }}
+                          title={language === 'tr' ? 'Yeniden Adlandır' : 'Rename'}
+                          disabled={loading}
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleExport(ws)}
+                          title={language === 'tr' ? 'Dışa Aktar (.dproj)' : 'Export (.dproj)'}
+                          disabled={loading}
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setWorkspaceToDelete(ws)}
+                          title={language === 'tr' ? 'Sil' : 'Delete'}
+                          disabled={loading}
+                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/45 text-slate-555 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -357,6 +501,150 @@ export const WelcomeScreen: React.FC = () => {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {workspaceToDelete && (
+        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              {language === 'tr' ? 'Çalışma Alanını Sil' : 'Delete Workspace'}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+              {language === 'tr'
+                ? `"${workspaceToDelete.name}" isimli çalışma alanını silmek istediğinize emin misiniz? Bu işlem dosyaları diskten kalıcı olarak silecektir ve geri alınamaz.`
+                : `Are you sure you want to delete the workspace "${workspaceToDelete.name}"? This will permanently delete the files from disk and cannot be undone.`}
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setWorkspaceToDelete(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-slate-100 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                {language === 'tr' ? 'Kalıcı Olarak Sil' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Workspace Modal */}
+      {workspaceToRename && (
+        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+              <Edit className="w-5 h-5 text-indigo-500" />
+              {language === 'tr' ? 'Çalışma Alanını Yeniden Adlandır' : 'Rename Workspace'}
+            </h3>
+            <form onSubmit={handleRenameWorkspace} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {language === 'tr' ? 'Yeni İsim' : 'New Name'}
+                </label>
+                <input
+                  type="text"
+                  value={renameName}
+                  onChange={(e) => setRenameName(e.target.value)}
+                  disabled={loading}
+                  maxLength={50}
+                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200"
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWorkspaceToRename(null);
+                    setRenameName('');
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || !renameName.trim()}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-100 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  {language === 'tr' ? 'Kaydet' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import Conflict Resolution Modal */}
+      {importConflicts.length > 0 && conflictResolver && (
+        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl transition-all">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500 animate-pulse" />
+              {language === 'tr' ? 'Özel Bileşen Çakışması Algılandı' : 'Custom Component Conflict'}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+              {language === 'tr'
+                ? 'İçeri aktarılan projede yer alan aşağıdaki özel bileşenler şablon kütüphanenizde zaten mevcut. Nasıl devam etmek istersiniz?'
+                : 'The following custom components in the imported project already exist in your component library. How would you like to proceed?'}
+            </p>
+            
+            <div className="bg-slate-50 dark:bg-slate-950/50 rounded-xl p-3 max-h-40 overflow-y-auto mb-4 border border-slate-200 dark:border-slate-850">
+              {importConflicts.map((c) => (
+                <div key={c.compId} className="text-xs font-semibold py-1 text-slate-700 dark:text-slate-350">
+                  • {c.name}
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const resolutions: Record<string, ConflictResolution> = {};
+                  importConflicts.forEach((c) => (resolutions[c.compId] = 'overwrite'));
+                  conflictResolver.resolve(resolutions);
+                  setImportConflicts([]);
+                  setConflictResolver(null);
+                }}
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                {language === 'tr' ? 'Mevcut Olanların Üzerine Yaz (Önerilen)' : 'Overwrite Existing (Recommended)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const resolutions: Record<string, ConflictResolution> = {};
+                  importConflicts.forEach((c) => (resolutions[c.compId] = 'copy'));
+                  conflictResolver.resolve(resolutions);
+                  setImportConflicts([]);
+                  setConflictResolver(null);
+                }}
+                className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                {language === 'tr' ? 'İkisini de Koru (Yeni kopya olarak kaydet)' : 'Keep Both (Save as new copies)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  conflictResolver.reject(new Error(language === 'tr' ? 'İçe aktarma iptal edildi.' : 'Import cancelled.'));
+                  setImportConflicts([]);
+                  setConflictResolver(null);
+                }}
+                className="w-full py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-500 dark:text-slate-400 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                {t.cancel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

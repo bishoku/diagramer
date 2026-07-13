@@ -192,5 +192,27 @@ export const StorageService = {
     }
     // Web Implementation
     localStorage.removeItem(`file://${path}`);
+  },
+
+  delete_workspace: async (path: string): Promise<void> => {
+    if (isTauri()) {
+      // Delete directory on disk
+      await invoke('delete_file', { path });
+      
+      // Load recent, filter out this workspace, and save it back
+      const recentJson = await invoke<string>('get_recent_workspaces');
+      const recent = JSON.parse(recentJson);
+      const filtered = recent.filter((w: any) => w.path !== path);
+      await invoke('save_recent_workspaces', { workspacesJson: JSON.stringify(filtered) });
+      return;
+    }
+    // Web Implementation
+    const workspacesStr = localStorage.getItem(WEB_WORKSPACES_KEY) || '[]';
+    const workspaces = JSON.parse(workspacesStr);
+    const filtered = workspaces.filter((w: any) => w.path !== path);
+    localStorage.setItem(WEB_WORKSPACES_KEY, JSON.stringify(filtered));
+    
+    const dataKey = `${WEB_DIAGRAM_PREFIX}${path}`;
+    localStorage.removeItem(dataKey);
   }
 };
