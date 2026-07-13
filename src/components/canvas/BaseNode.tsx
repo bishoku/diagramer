@@ -1,10 +1,12 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Handle, Position, NodeResizer, useConnection } from '@xyflow/react';
 import { MessageSquare } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { CustomSvgRenderer } from './CustomSvgRenderer';
 import { useNodeAnimation } from './hooks';
 import { getNodeDefinition, getDefaultIcon } from '../../registry/NodeRegistry';
+import { resolveHandles, getHandleStyle } from '../../utils/portUtils';
+import { PortSide } from '../../types';
 
 interface BaseNodeProps {
   id: string; // React Flow passes node id as id prop
@@ -24,6 +26,15 @@ const getIcon = (type: string, customColorClass?: string) => {
     } as any);
   }
   return getDefaultIcon(customColorClass ?? 'text-slate-500');
+};
+
+const sideToPosition = (side: PortSide): Position => {
+  switch (side) {
+    case 'top': return Position.Top;
+    case 'right': return Position.Right;
+    case 'bottom': return Position.Bottom;
+    case 'left': return Position.Left;
+  }
 };
 
 const themeStyles: Record<string, { border: string; borderHover: string; ring: string; text: string; bg: string }> = {
@@ -82,6 +93,12 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
   const themeKey = useAppStore((s: any) => s.visualData.layoutNodes[id]?.theme ?? 'indigo');
   const updateNodeDimensions = useAppStore((s: any) => s.updateNodeDimensions);
   const libraryComponents = useAppStore((s: any) => s.libraryComponents);
+  const nodeHandles = useAppStore((s: any) => {
+    const ln = s.logicalData.nodes.find((n: any) => n.id === id);
+    return ln?.handles;
+  });
+
+  const handles = useMemo(() => resolveHandles(nodeHandles), [nodeHandles]);
 
   // Resolve theme style options
   const style = themeStyles[themeKey] ?? themeStyles.indigo;
@@ -123,35 +140,29 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
           : `bg-white dark:bg-slate-900 ${style.border} ${style.borderHover}`
       }`}>
         
-        {/* Top Handles */}
-        <Handle 
-          type="target" 
-          position={Position.Top} 
-          id="top-target" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-        />
-        <Handle 
-          type="source" 
-          position={Position.Top} 
-          id="top-source" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-          style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-        />
-        
-        {/* Left Handles */}
-        <Handle 
-          type="target" 
-          position={Position.Left} 
-          id="left-target" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-        />
-        <Handle 
-          type="source" 
-          position={Position.Left} 
-          id="left-source" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-          style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-        />
+        {/* Dynamic Handles — rendered from node's HandleConfig[] */}
+        {handles.map((h) => {
+          const pos = sideToPosition(h.side);
+          const posStyle = getHandleStyle(h.side, h.offset);
+          return (
+            <React.Fragment key={h.id}>
+              <Handle 
+                type="target" 
+                position={pos} 
+                id={`${h.id}-target`}
+                style={posStyle}
+                className="!w-2.5 !h-2.5 !border-2 !border-white dark:!border-slate-900 !bg-indigo-500 dark:!bg-indigo-400 hover:!scale-125 !transition-transform" 
+              />
+              <Handle 
+                type="source" 
+                position={pos} 
+                id={`${h.id}-source`}
+                style={{ ...posStyle, pointerEvents: isConnecting ? 'none' : 'auto' }}
+                className="!w-2.5 !h-2.5 !border-2 !border-white dark:!border-slate-900 !bg-indigo-500 dark:!bg-indigo-400 hover:!scale-125 !transition-transform" 
+              />
+            </React.Fragment>
+          );
+        })}
 
         {/* Node Content - adapt background and border to the custom theme, render custom SVG if customTemplate exists */}
         <div className={`p-1.5 rounded-lg border ${style.bg} ${style.border} w-10 h-10 flex items-center justify-center shrink-0 overflow-hidden`}>
@@ -172,36 +183,6 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
             {customTemplate ? customTemplate.category : type}
           </div>
         </div>
-
-        {/* Right Handles */}
-        <Handle 
-          type="target" 
-          position={Position.Right} 
-          id="right-target" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-        />
-        <Handle 
-          type="source" 
-          position={Position.Right} 
-          id="right-source" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-          style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-        />
-        
-        {/* Bottom Handles */}
-        <Handle 
-          type="target" 
-          position={Position.Bottom} 
-          id="bottom-target" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-        />
-        <Handle 
-          type="source" 
-          position={Position.Bottom} 
-          id="bottom-source" 
-          className="w-2.5 h-2.5 border-2 border-white dark:border-slate-900 bg-indigo-500 dark:bg-indigo-400 hover:scale-125 transition-transform" 
-          style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-        />
       </div>
     </div>
   );

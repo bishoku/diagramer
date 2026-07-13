@@ -1,11 +1,22 @@
 import { Language, Theme } from '../i18n/translations';
 
+// --- PORT / HANDLE SYSTEM ---
+export type PortSide = 'top' | 'right' | 'bottom' | 'left';
+
+export interface HandleConfig {
+  id: string;       // Unique handle ID, e.g. 'top:50', 'right:33'
+  side: PortSide;   // Which edge of the node
+  offset: number;   // Percentage position along the edge (0-100)
+  originalId?: string; // Tracks the original ID when loaded to allow stable keying/dragging
+}
+
 // --- LOGICAL DATA (Logical Flow - AI Readable) ---
 export interface LogicalNode {
   id: string; // E.g., 'node-client-1'
   type: string; // E.g., 'client', 'gateway', 'server', 'database', 'cache', 'queue', 'section'
   name: string; // User-defined name
   parentId?: string; // Section parent reference (for grouped nodes)
+  handles?: HandleConfig[]; // Custom connection points (undefined = default 4 handles)
 }
 
 export interface LogicalEdge {
@@ -13,8 +24,8 @@ export interface LogicalEdge {
   step?: number; // Step order for simulations (Phase 3)
   from: string; // Source Node ID
   to: string; // Target Node ID
-  fromPort: 'top' | 'right' | 'bottom' | 'left';
-  toPort: 'top' | 'right' | 'bottom' | 'left';
+  fromPort: string; // Port ID, e.g. 'right:50' (legacy: 'right' also accepted)
+  toPort: string;   // Port ID, e.g. 'left:50' (legacy: 'left' also accepted)
   isAsync: boolean;
   protocol?: string; // E.g., 'HTTP', 'gRPC', 'WebSocket' (Phase 4)
   description?: string; // Description shown only in logs
@@ -181,8 +192,8 @@ export interface AppState {
     edgeId: string,
     from: string,
     to: string,
-    fromPort: 'top' | 'right' | 'bottom' | 'left',
-    toPort: 'top' | 'right' | 'bottom' | 'left'
+    fromPort: string,
+    toPort: string
   ) => void;
   deleteNode: (id: string) => void;
   deleteEdge: (id: string) => void;
@@ -207,7 +218,8 @@ export interface AppState {
   setSequenceStepRoundTrip: (seqId: string, isRoundTrip: boolean) => void;
   toggleSequenceAsync: (seqId: string) => void;
   clearCanvas: () => void;
-  updateNodeDetails: (id: string, name: string, type: string, theme?: string) => void;
+  updateNodeDetails: (id: string, name: string, type: string, theme?: string, handles?: HandleConfig[]) => void;
+  updateNodeHandles: (nodeId: string, handles: HandleConfig[]) => void;
   updateEdgeDetails: (edgeId: string, protocol: string, isAsync: boolean, duration: number, delay: number, tooltipText?: string, tooltipDuration?: number, description?: string) => void;
 
   // Layout Actions

@@ -2,6 +2,7 @@ import { StateCreator } from 'zustand';
 import { AppState, WorkspaceMeta } from '../../types';
 import { Language, Theme } from '../../i18n/translations';
 import { StorageService } from '../../services/storage';
+import { migratePortFormat } from '../../utils/portMigration';
 
 const applyTheme = (theme: Theme) => {
   if (theme === 'dark') {
@@ -128,7 +129,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       
       set({ 
         currentWorkspace: ws, 
-        logicalData,
+        logicalData: migratePortFormat(logicalData),
         visualData,
         isDirty: false,
         isPlaying: false,

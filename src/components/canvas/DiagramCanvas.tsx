@@ -27,6 +27,7 @@ import { ContextMenu } from './ContextMenu';
 import { NodePropertiesPopover } from './NodePropertiesPopover';
 import { EdgePropertiesPopover } from './EdgePropertiesPopover';
 import { ClearCanvasModal } from './ClearCanvasModal';
+import { getDefaultHandles } from '../../utils/portUtils';
 
 import {
   useCanvasSync,
@@ -82,6 +83,7 @@ const FlowWrapper: React.FC = () => {
     name: string;
     type: string;
     theme: string;
+    handles?: any[];
   } | null>(null);
 
   const [activeEdgeProperties, setActiveEdgeProperties] = useState<{
@@ -136,6 +138,7 @@ const FlowWrapper: React.FC = () => {
         name: ln.name,
         type: ln.type,
         theme: vn?.theme ?? 'indigo',
+        handles: ln.handles,
       });
     }
   }, [closeMenu, visualDataRef]);
@@ -247,15 +250,15 @@ const FlowWrapper: React.FC = () => {
         
       let logicalFrom = connection.source;
       let logicalTo = connection.target;
-      let logicalFromPort = (connection.sourceHandle ?? 'right').split('-')[0];
-      let logicalToPort = (connection.targetHandle ?? 'left').split('-')[0];
+      let logicalFromPort = (connection.sourceHandle ?? 'right:50').split('-')[0];
+      let logicalToPort = (connection.targetHandle ?? 'left:50').split('-')[0];
 
       if (dragStartRef.current) {
         if (dragStartRef.current.nodeId === connection.target) {
           logicalFrom = connection.target;
           logicalTo = connection.source;
-          logicalFromPort = (connection.targetHandle ?? 'left').split('-')[0];
-          logicalToPort = (connection.sourceHandle ?? 'right').split('-')[0];
+          logicalFromPort = (connection.targetHandle ?? 'left:50').split('-')[0];
+          logicalToPort = (connection.sourceHandle ?? 'right:50').split('-')[0];
         }
       }
 
@@ -275,8 +278,8 @@ const FlowWrapper: React.FC = () => {
         id: edgeId,
         from: logicalFrom,
         to: logicalTo,
-        fromPort: logicalFromPort as 'top' | 'right' | 'bottom' | 'left',
-        toPort: logicalToPort as 'top' | 'right' | 'bottom' | 'left',
+        fromPort: logicalFromPort,
+        toPort: logicalToPort,
         isAsync: false,
       });
 
@@ -318,8 +321,8 @@ const FlowWrapper: React.FC = () => {
     (oldEdge: Edge, newConnection: Connection) => {
       if (!newConnection.source || !newConnection.target) return;
       setRfEdges((els) => reconnectEdge(oldEdge, newConnection, els));
-      const fromPort = (newConnection.sourceHandle ?? 'right').split('-')[0] as 'top' | 'right' | 'bottom' | 'left';
-      const toPort = (newConnection.targetHandle ?? 'left').split('-')[0] as 'top' | 'right' | 'bottom' | 'left';
+      const fromPort = (newConnection.sourceHandle ?? 'right:50').split('-')[0];
+      const toPort = (newConnection.targetHandle ?? 'left:50').split('-')[0];
       zustandReconnectEdge(oldEdge.id, newConnection.source, newConnection.target, fromPort, toPort);
     },
     [setRfEdges, zustandReconnectEdge]
@@ -405,8 +408,105 @@ const FlowWrapper: React.FC = () => {
 
 
   // Callback from Node properties to update local React Flow view state immediately
-  const handleApplyNodeProperties = useCallback((id: string, name: string, type: string, themeColor: string) => {
-    updateNodeDetails(id, name, type, themeColor);
+  const handleApplyNodeProperties = useCallback((id: string, name: string, type: string, themeColor: string, handles?: any[]) => {
+    pushToHistory();
+    
+    let handlesToSave: any[] | undefined = undefined;
+    
+    if (handles) {
+      // 1. Bake final IDs into the handles config
+      const bakedHandles = handles.map(h => ({
+        id: `${h.side}:${h.offset}`,
+        side: h.side,
+        offset: h.offset
+      }));
+      
+      const defaultHandles = getDefaultHandles();
+      const isDefault = bakedHandles.length === defaultHandles.length &&
+        bakedHandles.every((h, i) => h.id === defaultHandles[i]?.id && h.offset === defaultHandles[i]?.offset && h.side === defaultHandles[i]?.side);
+      
+      handlesToSave = isDefault ? undefined : bakedHandles;
+
+      // 2. Create map from originalId/old ID to new ID
+      const idMap = new Map<string, string>();
+      handles.forEach(h => {
+        const original = h.originalId || h.id;
+        const finalId = `${h.side}:${h.offset}`;
+        idMap.set(original, finalId);
+      });
+
+      // 3. Find edges to remove (connected to deleted handles)
+      const { logicalData } = useAppStore.getState();
+      const edgesToRemove = logicalData.edges.filter(e => {
+        const fromPortId = e.fromPort;
+        const toPortId = e.toPort;
+        if (e.from === id && !idMap.has(fromPortId)) return true;
+        if (e.to === id && !idMap.has(toPortId)) return true;
+        return false;
+      });
+
+      // Remove deleted edges
+      edgesToRemove.forEach(e => {
+        deleteEdge(e.id);
+      });
+      const removedIds = new Set(edgesToRemove.map(e => e.id));
+      setRfEdges(eds => eds.filter(re => !removedIds.has(re.id)));
+
+      // 4. Update ports of remaining edges that were moved/repositioned
+      const remainingEdges = useAppStore.getState().logicalData.edges.map(e => {
+        let fromPort = e.fromPort;
+        let toPort = e.toPort;
+        let changed = false;
+        
+        if (e.from === id && idMap.has(e.fromPort)) {
+          const newPort = idMap.get(e.fromPort)!;
+          if (fromPort !== newPort) {
+            fromPort = newPort;
+            changed = true;
+          }
+        }
+        if (e.to === id && idMap.has(e.toPort)) {
+          const newPort = idMap.get(e.toPort)!;
+          if (toPort !== newPort) {
+            toPort = newPort;
+            changed = true;
+          }
+        }
+        return changed ? { ...e, fromPort, toPort } : e;
+      });
+
+      useAppStore.setState(state => ({
+        logicalData: {
+          ...state.logicalData,
+          edges: remainingEdges
+        }
+      }));
+
+      // Update React Flow visual edges immediately to prevent flash
+      setRfEdges(eds => eds.map(re => {
+        let sourceHandle = re.sourceHandle;
+        let targetHandle = re.targetHandle;
+        let changed = false;
+
+        if (re.source === id && re.sourceHandle) {
+          const originalPort = re.sourceHandle.split('-')[0];
+          if (idMap.has(originalPort)) {
+            sourceHandle = `${idMap.get(originalPort)}-source`;
+            changed = true;
+          }
+        }
+        if (re.target === id && re.targetHandle) {
+          const originalPort = re.targetHandle.split('-')[0];
+          if (idMap.has(originalPort)) {
+            targetHandle = `${idMap.get(originalPort)}-target`;
+            changed = true;
+          }
+        }
+        return changed ? { ...re, sourceHandle, targetHandle } : re;
+      }));
+    }
+    
+    updateNodeDetails(id, name, type, themeColor, handlesToSave);
     setRfNodes((nds) =>
       nds.map((n) =>
         n.id === id
@@ -422,7 +522,7 @@ const FlowWrapper: React.FC = () => {
       )
     );
     setActiveNodeProperties(null);
-  }, [updateNodeDetails, setRfNodes]);
+  }, [updateNodeDetails, setRfNodes, setRfEdges, deleteEdge, pushToHistory]);
 
   return (
     <div

@@ -972,8 +972,17 @@ export const generateStandaloneHtml = (
     function calculateBezierPath(edge) {
       const sourceId = edge.from;
       const targetId = edge.to;
-      const sourcePort = edge.fromPort || 'right';
-      const targetPort = edge.toPort || 'left';
+      const rawSourcePort = edge.fromPort || 'right:50';
+      const rawTargetPort = edge.toPort || 'left:50';
+
+      // Parse port format: 'side:offset' or legacy 'side' (defaults to 50%)
+      function parsePort(portId) {
+        const parts = portId.split(':');
+        return { side: parts[0], offset: parts.length > 1 ? Number(parts[1]) : 50 };
+      }
+
+      const sourcePort = parsePort(rawSourcePort);
+      const targetPort = parsePort(rawTargetPort);
 
       const sAbs = getAbsolutePos(sourceId);
       const tAbs = getAbsolutePos(targetId);
@@ -984,35 +993,35 @@ export const generateStandaloneHtml = (
       const tW = tAbs.width;
       const tH = tAbs.height;
 
-      // Source Port coordinate
+      // Source Port coordinate (uses offset percentage)
       let sX, sY;
-      if (sourcePort === 'left') {
+      if (sourcePort.side === 'left') {
         sX = sAbs.x;
-        sY = sAbs.y + sH / 2;
-      } else if (sourcePort === 'right') {
+        sY = sAbs.y + sH * (sourcePort.offset / 100);
+      } else if (sourcePort.side === 'right') {
         sX = sAbs.x + sW;
-        sY = sAbs.y + sH / 2;
-      } else if (sourcePort === 'top') {
-        sX = sAbs.x + sW / 2;
+        sY = sAbs.y + sH * (sourcePort.offset / 100);
+      } else if (sourcePort.side === 'top') {
+        sX = sAbs.x + sW * (sourcePort.offset / 100);
         sY = sAbs.y;
       } else { // bottom
-        sX = sAbs.x + sW / 2;
+        sX = sAbs.x + sW * (sourcePort.offset / 100);
         sY = sAbs.y + sH;
       }
 
-      // Target Port coordinate
+      // Target Port coordinate (uses offset percentage)
       let tX, tY;
-      if (targetPort === 'left') {
+      if (targetPort.side === 'left') {
         tX = tAbs.x;
-        tY = tAbs.y + tH / 2;
-      } else if (targetPort === 'right') {
+        tY = tAbs.y + tH * (targetPort.offset / 100);
+      } else if (targetPort.side === 'right') {
         tX = tAbs.x + tW;
-        tY = tAbs.y + tH / 2;
-      } else if (targetPort === 'top') {
-        tX = tAbs.x + tW / 2;
+        tY = tAbs.y + tH * (targetPort.offset / 100);
+      } else if (targetPort.side === 'top') {
+        tX = tAbs.x + tW * (targetPort.offset / 100);
         tY = tAbs.y;
       } else { // bottom
-        tX = tAbs.x + tW / 2;
+        tX = tAbs.x + tW * (targetPort.offset / 100);
         tY = tAbs.y + tH;
       }
 
@@ -1058,15 +1067,15 @@ export const generateStandaloneHtml = (
       let c2x = tX;
       let c2y = tY;
 
-      if (sourcePort === 'left') c1x -= controlOffset;
-      else if (sourcePort === 'right') c1x += controlOffset;
-      else if (sourcePort === 'top') c1y -= controlOffset;
-      else if (sourcePort === 'bottom') c1y += controlOffset;
+      if (sourcePort.side === 'left') c1x -= controlOffset;
+      else if (sourcePort.side === 'right') c1x += controlOffset;
+      else if (sourcePort.side === 'top') c1y -= controlOffset;
+      else if (sourcePort.side === 'bottom') c1y += controlOffset;
 
-      if (targetPort === 'left') c2x -= controlOffset;
-      else if (targetPort === 'right') c2x += controlOffset;
-      else if (targetPort === 'top') c2y -= controlOffset;
-      else if (targetPort === 'bottom') c2y += controlOffset;
+      if (targetPort.side === 'left') c2x -= controlOffset;
+      else if (targetPort.side === 'right') c2x += controlOffset;
+      else if (targetPort.side === 'top') c2y -= controlOffset;
+      else if (targetPort.side === 'bottom') c2y += controlOffset;
 
       c1x += nx * offset;
       c1y += ny * offset;

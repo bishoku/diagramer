@@ -1,7 +1,9 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Handle, Position, NodeResizer, useConnection } from '@xyflow/react';
 import { useAppStore } from '../../store/useAppStore';
 import { useSectionAnimation } from './hooks';
+import { resolveHandles, getHandleStyle } from '../../utils/portUtils';
+import { PortSide } from '../../types';
 
 interface SectionNodeProps {
   id: string;
@@ -11,6 +13,15 @@ interface SectionNodeProps {
   };
   selected?: boolean;
 }
+
+const sideToPosition = (side: PortSide): Position => {
+  switch (side) {
+    case 'top': return Position.Top;
+    case 'right': return Position.Right;
+    case 'bottom': return Position.Bottom;
+    case 'left': return Position.Left;
+  }
+};
 
 const themeStyles: Record<string, { border: string; bg: string; label: string; glow: string }> = {
   slate: {
@@ -61,10 +72,15 @@ export const SectionNode: React.FC<SectionNodeProps> = memo(({ id, data, selecte
   const name = data?.name ?? 'Section';
   const themeKey = useAppStore((s: any) => s.visualData.layoutNodes[id]?.theme ?? 'slate');
   const updateNodeDimensions = useAppStore((s: any) => s.updateNodeDimensions);
+  const nodeHandles = useAppStore((s: any) => {
+    const ln = s.logicalData.nodes.find((n: any) => n.id === id);
+    return ln?.handles;
+  });
   
   const connection = useConnection();
   const isConnecting = !!connection.inProgress;
 
+  const handles = useMemo(() => resolveHandles(nodeHandles), [nodeHandles]);
   const isActive = useSectionAnimation(id);
   const style = themeStyles[themeKey] ?? themeStyles.slate;
 
@@ -100,66 +116,29 @@ export const SectionNode: React.FC<SectionNodeProps> = memo(({ id, data, selecte
         {/* Child nodes are rendered by ReactFlow via parentId — this area is just the background */}
       </div>
 
-      {/* Connection Handles */}
-      {/* Top Handles */}
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        id="top-target" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-      />
-      <Handle 
-        type="source" 
-        position={Position.Top} 
-        id="top-source" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-        style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-      />
-      
-      {/* Left Handles */}
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        id="left-target" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-      />
-      <Handle 
-        type="source" 
-        position={Position.Left} 
-        id="left-source" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-        style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-      />
-
-      {/* Right Handles */}
-      <Handle 
-        type="target" 
-        position={Position.Right} 
-        id="right-target" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-      />
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        id="right-source" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-        style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-      />
-      
-      {/* Bottom Handles */}
-      <Handle 
-        type="target" 
-        position={Position.Bottom} 
-        id="bottom-target" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-      />
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        id="bottom-source" 
-        className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-500 hover:bg-indigo-500 hover:scale-125 transition-all rounded-full" 
-        style={{ pointerEvents: isConnecting ? 'none' : 'auto' }}
-      />
+      {/* Dynamic Connection Handles */}
+      {handles.map((h) => {
+        const pos = sideToPosition(h.side);
+        const posStyle = getHandleStyle(h.side, h.offset);
+        return (
+          <React.Fragment key={h.id}>
+            <Handle 
+              type="target" 
+              position={pos} 
+              id={`${h.id}-target`}
+              style={posStyle}
+              className="!w-3.5 !h-3.5 !border-2 !border-white dark:!border-slate-900 !bg-slate-400 dark:!bg-slate-500 hover:!bg-indigo-500 hover:!scale-125 !transition-all !rounded-full" 
+            />
+            <Handle 
+              type="source" 
+              position={pos} 
+              id={`${h.id}-source`}
+              style={{ ...posStyle, pointerEvents: isConnecting ? 'none' : 'auto' }}
+              className="!w-3.5 !h-3.5 !border-2 !border-white dark:!border-slate-900 !bg-slate-400 dark:!bg-slate-500 hover:!bg-indigo-500 hover:!scale-125 !transition-all !rounded-full" 
+            />
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 });

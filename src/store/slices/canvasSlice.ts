@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { AppState, LogicalNode, VisualNode, LogicalEdge } from '../../types';
+import { AppState, LogicalNode, VisualNode, LogicalEdge, HandleConfig } from '../../types';
 import { getLayoutedElements } from '../../utils/layout';
 
 export interface CanvasSlice {
@@ -8,14 +8,15 @@ export interface CanvasSlice {
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeDimensions: (id: string, width: number, height: number) => void;
   addEdge: (edge: LogicalEdge) => void;
-  reconnectEdge: (edgeId: string, from: string, to: string, fromPort: 'top' | 'right' | 'bottom' | 'left', toPort: 'top' | 'right' | 'bottom' | 'left') => void;
+  reconnectEdge: (edgeId: string, from: string, to: string, fromPort: string, toPort: string) => void;
   deleteNode: (id: string) => void;
   deleteEdge: (id: string) => void;
   updateCanvasViewport: (zoom: number, pan: { x: number; y: number }) => void;
   startDrag: (type: string, name: string) => void;
   cancelDrag: () => void;
   clearCanvas: () => void;
-  updateNodeDetails: (id: string, name: string, type: string, theme?: string) => void;
+  updateNodeDetails: (id: string, name: string, type: string, theme?: string, handles?: HandleConfig[]) => void;
+  updateNodeHandles: (nodeId: string, handles: HandleConfig[]) => void;
   updateEdgeDetails: (edgeId: string, protocol: string, isAsync: boolean, duration: number, delay: number, tooltipText?: string, tooltipDuration?: number, description?: string) => void;
   setNodeParent: (nodeId: string, parentId: string | null) => void;
   autoResizeSection: (sectionId: string) => void;
@@ -172,10 +173,10 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     selectedSequenceId: null
   })),
 
-  updateNodeDetails: (id, name, type, theme) => {
+  updateNodeDetails: (id, name, type, theme, handles) => {
     set((state) => {
       const nodes = state.logicalData.nodes.map((n) => 
-        n.id === id ? { ...n, name, type } : n
+        n.id === id ? { ...n, name, type, ...(handles !== undefined ? { handles } : {}) } : n
       );
       const existingVisual = state.visualData.layoutNodes[id] ?? { id, x: 0, y: 0 };
       const layoutNodes = {
@@ -185,6 +186,19 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
       return {
         logicalData: { ...state.logicalData, nodes },
         visualData: { ...state.visualData, layoutNodes },
+        isDirty: true
+      };
+    });
+  },
+
+  updateNodeHandles: (nodeId, handles) => {
+    get().pushToHistory();
+    set((state) => {
+      const nodes = state.logicalData.nodes.map((n) =>
+        n.id === nodeId ? { ...n, handles } : n
+      );
+      return {
+        logicalData: { ...state.logicalData, nodes },
         isDirty: true
       };
     });
@@ -410,8 +424,8 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     });
 
     // Update edge connection ports based on layout direction (excluding internal section edges)
-    const fromPort: 'bottom' | 'right' = direction === 'TB' ? 'bottom' : 'right';
-    const toPort: 'top' | 'left' = direction === 'TB' ? 'top' : 'left';
+    const fromPort: string = direction === 'TB' ? 'bottom:50' : 'right:50';
+    const toPort: string = direction === 'TB' ? 'top:50' : 'left:50';
     const updatedEdges = edges.map((edge) => {
       const parentSrc = nodeParentMap.get(edge.from);
       const parentTgt = nodeParentMap.get(edge.to);
