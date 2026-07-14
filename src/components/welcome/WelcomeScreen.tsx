@@ -17,7 +17,7 @@ export const WelcomeScreen: React.FC = () => {
   const theme = useAppStore((s) => s.theme);
   const changeLanguage = useAppStore((s) => s.changeLanguage);
   const changeTheme = useAppStore((s) => s.changeTheme);
-  
+
   const t = translations[language];
 
   const [name, setName] = useState('');
@@ -50,7 +50,7 @@ export const WelcomeScreen: React.FC = () => {
   const handleImport = async () => {
     try {
       let zipData: ArrayBuffer | Uint8Array;
-      
+
       if (isTauri()) {
         const selected = await open({
           multiple: false,
@@ -83,7 +83,7 @@ export const WelcomeScreen: React.FC = () => {
         input.click();
         return;
       }
-      
+
       await runImport(zipData);
     } catch (err: any) {
       setError(err.message || err.toString());
@@ -96,14 +96,14 @@ export const WelcomeScreen: React.FC = () => {
       const saveDiagramFn = async (path: string, logicalJson: string, visualJson: string) => {
         await StorageService.save_diagram(path, logicalJson, visualJson);
       };
-      
+
       const resolveConflictsFn = (conflictsList: ImportConflict[]) => {
         return new Promise<Record<string, ConflictResolution>>((resolve, reject) => {
           setImportConflicts(conflictsList);
           setConflictResolver({ resolve, reject });
         });
       };
-      
+
       const ws = await importWorkspace(
         zipData,
         createWorkspace,
@@ -111,7 +111,7 @@ export const WelcomeScreen: React.FC = () => {
         resolveConflictsFn,
         language
       );
-      
+
       await loadWorkspace(ws.path);
     } catch (err: any) {
       setError(err.message || err.toString());
@@ -212,7 +212,7 @@ export const WelcomeScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-6 relative overflow-hidden select-none transition-colors duration-300">
-      
+
       {/* Decorative gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[60%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[60%] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none" />
@@ -230,18 +230,18 @@ export const WelcomeScreen: React.FC = () => {
       </div>
 
       <div className="w-full max-w-5xl bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-250 dark:border-slate-800/80 rounded-2xl shadow-xl dark:shadow-2xl overflow-hidden flex flex-col md:flex-row z-10 min-h-[550px] transition-all">
-        
+
         {/* Left Side: Recent Workspaces */}
         <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-6">
-              <img src="/pwa-icon.png" className={"h-12"}/>
+              <img src="pwa-icon.png" className={"h-12"} />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-400 dark:from-indigo-200 dark:via-indigo-100 dark:to-slate-200 bg-clip-text text-transparent">
                 {t.welcomeTitle}
               </h1>
 
             </div>
-            
+
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium text-sm">
                 <History className="w-4 h-4" />
@@ -274,7 +274,7 @@ export const WelcomeScreen: React.FC = () => {
                     key={ws.path}
                     className="w-full p-3 bg-slate-100/30 dark:bg-slate-950/30 hover:border-indigo-500/30 border border-slate-200/60 dark:border-slate-800/60 rounded-xl transition-all duration-200 group flex items-center justify-between"
                   >
-                    <div 
+                    <div
                       onClick={() => handleLoadRecent(ws.path)}
                       className="flex-1 min-w-0 pr-2 cursor-pointer"
                     >
@@ -286,13 +286,13 @@ export const WelcomeScreen: React.FC = () => {
                         <span className="truncate" title={ws.path}>{formatPath(ws.path)}</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                       <div className="text-right text-[10px] text-slate-550 hidden sm:block">
                         <div className="font-medium">{language === 'tr' ? 'Son erişim' : 'Last access'}</div>
                         <div className="mt-0.5 text-slate-400 dark:text-slate-500">{formatDate(ws.lastAccessed)}</div>
                       </div>
-                      
+
                       <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => {
@@ -328,7 +328,7 @@ export const WelcomeScreen: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800/50 text-[11px] text-slate-500 flex items-center gap-1.5">
             <Info className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 flex-shrink-0" />
             <span>{t.physicalStoreNote}</span>
@@ -400,7 +400,7 @@ export const WelcomeScreen: React.FC = () => {
               </button>
             </form>
           </div>
-          
+
 
         </div>
 
@@ -410,7 +410,7 @@ export const WelcomeScreen: React.FC = () => {
       {showPrefModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all">
-            
+
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <Settings className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
@@ -428,22 +428,20 @@ export const WelcomeScreen: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => changeLanguage('tr')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      language === 'tr'
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${language === 'tr'
                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
+                      }`}
                   >
                     {language === 'tr' && <Check className="w-3.5 h-3.5" />}
                     {t.langTr}
                   </button>
                   <button
                     onClick={() => changeLanguage('en')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      language === 'en'
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${language === 'en'
                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
+                      }`}
                   >
                     {language === 'en' && <Check className="w-3.5 h-3.5" />}
                     {t.langEn}
@@ -460,22 +458,20 @@ export const WelcomeScreen: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => changeTheme('dark')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      theme === 'dark'
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${theme === 'dark'
                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
+                      }`}
                   >
                     <Moon className="w-3.5 h-3.5" />
                     <span>{t.themeDark}</span>
                   </button>
                   <button
                     onClick={() => changeTheme('light')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      theme === 'light'
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${theme === 'light'
                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
+                      }`}
                   >
                     <Sun className="w-3.5 h-3.5" />
                     <span>{t.themeLight}</span>
@@ -590,7 +586,7 @@ export const WelcomeScreen: React.FC = () => {
                 ? 'İçeri aktarılan projede yer alan aşağıdaki özel bileşenler şablon kütüphanenizde zaten mevcut. Nasıl devam etmek istersiniz?'
                 : 'The following custom components in the imported project already exist in your component library. How would you like to proceed?'}
             </p>
-            
+
             <div className="bg-slate-50 dark:bg-slate-950/50 rounded-xl p-3 max-h-40 overflow-y-auto mb-4 border border-slate-200 dark:border-slate-850">
               {importConflicts.map((c) => (
                 <div key={c.compId} className="text-xs font-semibold py-1 text-slate-700 dark:text-slate-350">
@@ -598,7 +594,7 @@ export const WelcomeScreen: React.FC = () => {
                 </div>
               ))}
             </div>
-            
+
             <div className="flex flex-col gap-2">
               <button
                 type="button"
