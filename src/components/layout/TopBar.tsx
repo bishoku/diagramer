@@ -208,7 +208,7 @@ export const TopBar: React.FC = () => {
           className="flex items-center gap-1.5 cursor-pointer"
           title={language === 'tr' ? 'Giriş ekranına dön' : 'Go back to welcome screen'}
         >
-          <img src="/pwa-icon.png" className={"h-6"} />
+          <img src="pwa-icon.png" className={"h-6"} />
           <span className="font-bold text-sm tracking-wide bg-gradient-to-r from-indigo-600 to-indigo-400 dark:from-indigo-200 dark:to-slate-200 bg-clip-text text-transparent">
             {t.welcomeTitle}
           </span>
@@ -270,8 +270,8 @@ export const TopBar: React.FC = () => {
           <button
             onClick={toggleLeftSidebar}
             className={`p-1.5 rounded cursor-pointer transition-colors ${leftSidebarOpen
-                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
-                : 'text-slate-400 hover:bg-slate-100 dark:text-slate-550 dark:hover:bg-slate-800'
+              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
+              : 'text-slate-400 hover:bg-slate-100 dark:text-slate-550 dark:hover:bg-slate-800'
               }`}
             title={language === 'tr' ? 'Sol paneli gizle/göster' : 'Toggle left sidebar'}
           >
@@ -281,8 +281,8 @@ export const TopBar: React.FC = () => {
           <button
             onClick={toggleTimeline}
             className={`p-1.5 rounded cursor-pointer transition-colors ${timelineOpen
-                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
-                : 'text-slate-400 hover:bg-slate-100 dark:text-slate-550 dark:hover:bg-slate-800'
+              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
+              : 'text-slate-400 hover:bg-slate-100 dark:text-slate-550 dark:hover:bg-slate-800'
               }`}
             title={language === 'tr' ? 'Zaman çizelgesini gizle/göster' : 'Toggle timeline'}
           >
@@ -292,8 +292,8 @@ export const TopBar: React.FC = () => {
           <button
             onClick={toggleRightSidebar}
             className={`p-1.5 rounded cursor-pointer transition-colors ${rightSidebarOpen
-                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
-                : 'text-slate-400 hover:bg-slate-100 dark:text-slate-550 dark:hover:bg-slate-800'
+              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
+              : 'text-slate-400 hover:bg-slate-100 dark:text-slate-550 dark:hover:bg-slate-800'
               }`}
             title={language === 'tr' ? 'Sağ paneli gizle/göster' : 'Toggle right sidebar'}
           >
@@ -492,8 +492,8 @@ export const TopBar: React.FC = () => {
                       type="button"
                       onClick={() => changeLanguage('tr')}
                       className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${language === 'tr'
-                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
                         }`}
                     >
                       {t.langTr}
@@ -502,8 +502,8 @@ export const TopBar: React.FC = () => {
                       type="button"
                       onClick={() => changeLanguage('en')}
                       className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${language === 'en'
-                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
                         }`}
                     >
                       {t.langEn}
@@ -522,8 +522,8 @@ export const TopBar: React.FC = () => {
                       type="button"
                       onClick={() => changeTheme('dark')}
                       className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${theme === 'dark'
-                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
                         }`}
                     >
                       {t.themeDark}
@@ -532,8 +532,8 @@ export const TopBar: React.FC = () => {
                       type="button"
                       onClick={() => changeTheme('light')}
                       className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${theme === 'light'
-                          ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
                         }`}
                     >
                       {t.themeLight}
