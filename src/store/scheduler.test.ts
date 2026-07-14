@@ -143,8 +143,63 @@ describe('calculateSchedules', () => {
     // seq-entry: starts at 0, arrival at 1000. It targets the section container itself.
     // The subflow (seq-internal) starts after seq-entry's arrival (1000) + delay (100) = 1100.
     // seq-internal ends at 1100 + 800 = 1900.
-    // The total end of the section entry step includes the subflow, so it ends at 1900.
+    // The total end of the section entry step is extended to cover the full duration of the section's execution.
     expect(schedules['seq-entry']).toEqual({ start: 0, end: 1900 });
     expect(schedules['seq-internal']).toEqual({ start: 1100, end: 1900 });
+  });
+
+  it('independent parallel chains should not block each other across step groups', () => {
+    // Reproduces the user-reported bug:
+    // Client fires step-1 to Section-1 (which has a slow internal subflow)
+    // AND step-1 to Gateway-2 (a fast independent chain).
+    // Gateway-2 → Server-2 is step-2 and should start as soon as
+    // Client → Gateway-2 finishes — NOT after Section-1's subflow.
+    const sequences: SequenceStep[] = [
+      // Step 1 — parallel
+      { id: 'seq-entry-section', stepNumber: 1, edgeId: 'edge-client-section', isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-client-gw2',   stepNumber: 1, edgeId: 'edge-client-gw2',    isAsync: false, isRoundTrip: false, direction: 'forward' },
+      // Step 2 — sequenced inside section (nested automatically)
+      { id: 'seq-gw1-srv1',     stepNumber: 2, edgeId: 'edge-gw1-srv1',      isAsync: false, isRoundTrip: false, direction: 'forward' },
+      // Step 2 — independent chain from Gateway-2
+      { id: 'seq-gw2-srv2',     stepNumber: 2, edgeId: 'edge-gw2-srv2',      isAsync: false, isRoundTrip: false, direction: 'forward' },
+    ];
+    const timelines: Record<string, TimelineTiming> = {
+      'seq-entry-section': { sequenceId: 'seq-entry-section', duration: 2000, delay: 0 },
+      'seq-client-gw2':    { sequenceId: 'seq-client-gw2',    duration: 1000, delay: 0 },
+      'seq-gw1-srv1':      { sequenceId: 'seq-gw1-srv1',      duration: 1000, delay: 0 },
+      'seq-gw2-srv2':      { sequenceId: 'seq-gw2-srv2',      duration: 1000, delay: 0 },
+    };
+    const edges: LogicalEdge[] = [
+      { id: 'edge-client-section', from: 'node-client',  to: 'section-1',   fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-client-gw2',     from: 'node-client',  to: 'node-gw2',    fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-gw1-srv1',       from: 'node-gw1',     to: 'node-srv1',   fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-gw2-srv2',       from: 'node-gw2',     to: 'node-srv2',   fromPort: 'right', toPort: 'left', isAsync: false },
+    ];
+    const nodes: LogicalNode[] = [
+      { id: 'node-client', type: 'client',  name: 'Client' },
+      { id: 'section-1',   type: 'section', name: 'Section 1' },
+      { id: 'node-gw1',    type: 'gateway', name: 'Gateway 1', parentId: 'section-1' },
+      { id: 'node-srv1',   type: 'server',  name: 'Server 1',  parentId: 'section-1' },
+      { id: 'node-gw2',    type: 'gateway', name: 'Gateway 2' },
+      { id: 'node-srv2',   type: 'server',  name: 'Server 2' },
+    ];
+
+    const schedules = calculateSchedules(sequences, timelines, edges, nodes);
+
+    // Step 1 both start at t=0 (parallel)
+    expect(schedules['seq-entry-section'].start).toBe(0);
+    expect(schedules['seq-client-gw2'].start).toBe(0);
+    expect(schedules['seq-client-gw2'].end).toBe(1000);
+
+    // seq-gw1-srv1 is nested under seq-entry-section (Gateway1 parentId=section-1)
+    // It starts at arrival of seq-entry-section (t=2000) and ends at t=3000
+    expect(schedules['seq-gw1-srv1'].start).toBe(2000);
+    expect(schedules['seq-gw1-srv1'].end).toBe(3000);
+
+    // seq-gw2-srv2 sources from node-gw2, which was targeted by seq-client-gw2.
+    // It should start as soon as seq-client-gw2 finishes (t=1000),
+    // NOT at t=2000 (when Section-1's subflow finishes).
+    expect(schedules['seq-gw2-srv2'].start).toBe(1000);
+    expect(schedules['seq-gw2-srv2'].end).toBe(2000);
   });
 });

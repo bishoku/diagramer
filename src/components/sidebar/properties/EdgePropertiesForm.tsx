@@ -14,17 +14,30 @@ interface EdgePropertiesFormProps {
   onSubmit: (
     id: string, protocol: string, isAsync: boolean, duration: number, delay: number,
     tooltipText: string, tooltipDuration: number, description: string,
-    particleType: ParticleType | undefined,
+    particleType: ParticleType | undefined, showArrow: boolean, color: string,
     stepNumber: number, direction: 'forward' | 'reverse', isRoundTrip: boolean
   ) => void;
   /** Called immediately on every field change for live canvas preview */
   onPreview: (
     id: string, protocol: string, isAsync: boolean, duration: number, delay: number,
     tooltipText: string, tooltipDuration: number, description: string,
-    particleType: ParticleType,
+    particleType: ParticleType, showArrow: boolean, color: string,
     stepNumber: number, direction: 'forward' | 'reverse', isRoundTrip: boolean
   ) => void;
 }
+
+// Preset edge color palette
+const EDGE_COLORS = [
+  { label: 'Default', value: '',        cls: 'bg-slate-400' },
+  { label: 'Indigo',  value: '#6366f1', cls: 'bg-indigo-500' },
+  { label: 'Emerald', value: '#10b981', cls: 'bg-emerald-500' },
+  { label: 'Rose',    value: '#f43f5e', cls: 'bg-rose-500' },
+  { label: 'Amber',   value: '#f59e0b', cls: 'bg-amber-500' },
+  { label: 'Violet',  value: '#8b5cf6', cls: 'bg-violet-500' },
+  { label: 'Cyan',    value: '#06b6d4', cls: 'bg-cyan-500' },
+];
+const DEFAULT_COLOR = '';
+
 
 /** Compact label */
 const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -74,6 +87,8 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
   const [formRoundTrip, setFormRoundTrip] = useState(sequenceRoundTrip);
   const [description, setDescription] = useState(activeEdge.description ?? '');
   const [particleType, setParticleType] = useState<ParticleType>(resolveParticleType(activeEdge.particleType));
+  const [showArrow, setShowArrow] = useState(activeEdge.showArrow ?? false);
+  const [color, setColor] = useState(activeEdge.color ?? DEFAULT_COLOR);
 
   // Snapshot originals for cancel
   const [orig, setOrig] = useState({
@@ -82,6 +97,8 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
     delay: activeEdge.delay, tooltipText: activeEdge.tooltipText,
     tooltipDuration: activeEdge.tooltipDuration, description: activeEdge.description ?? '',
     particleType: resolveParticleType(activeEdge.particleType),
+    showArrow: activeEdge.showArrow ?? false,
+    color: activeEdge.color ?? DEFAULT_COLOR,
     direction: sequenceDirection, roundTrip: sequenceRoundTrip,
   });
 
@@ -92,19 +109,22 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
       delay: activeEdge.delay, tooltipText: activeEdge.tooltipText,
       tooltipDuration: activeEdge.tooltipDuration, description: activeEdge.description ?? '',
       particleType: resolveParticleType(activeEdge.particleType),
+      showArrow: activeEdge.showArrow ?? false,
+      color: activeEdge.color ?? DEFAULT_COLOR,
       direction: sequenceDirection, roundTrip: sequenceRoundTrip,
     };
     setProtocol(snap.protocol); setIsAsync(snap.isAsync); setStepNumber(snap.stepNumber);
     setDuration(snap.duration); setDelay(snap.delay); setTooltipText(snap.tooltipText);
     setTooltipDuration(snap.tooltipDuration); setDescription(snap.description);
-    setParticleType(snap.particleType); setFormDirection(snap.direction); setFormRoundTrip(snap.roundTrip);
+    setParticleType(snap.particleType); setShowArrow(snap.showArrow); setColor(snap.color);
+    setFormDirection(snap.direction); setFormRoundTrip(snap.roundTrip);
     setOrig(snap);
   }, [activeEdge, sequenceDirection, sequenceRoundTrip]);
 
   // Convenience: preview current values
   const preview = (o?: Partial<{
     p: string; ia: boolean; s: number; d: number; dl: number;
-    tt: string; td: number; desc: string; pt: ParticleType;
+    tt: string; td: number; desc: string; pt: ParticleType; arr: boolean; clr: string;
     dir: 'forward' | 'reverse'; rt: boolean;
   }>) =>
     onPreview(
@@ -112,23 +132,24 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
       o?.p ?? protocol, o?.ia ?? isAsync,
       o?.d ?? duration, o?.dl ?? delay,
       o?.tt ?? tooltipText, o?.td ?? tooltipDuration,
-      o?.desc ?? description, o?.pt ?? particleType,
+      o?.desc ?? description, o?.pt ?? particleType, o?.arr ?? showArrow, o?.clr ?? color,
       o?.s ?? stepNumber, o?.dir ?? formDirection, o?.rt ?? formRoundTrip,
     );
 
   useImperativeHandle(ref, () => ({
-    submit: () => onSubmit(activeEdge.id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType, stepNumber, formDirection, formRoundTrip),
+    submit: () => onSubmit(activeEdge.id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType, showArrow, color, stepNumber, formDirection, formRoundTrip),
     cancel: () => {
       setProtocol(orig.protocol); setIsAsync(orig.isAsync); setStepNumber(orig.stepNumber);
       setDuration(orig.duration); setDelay(orig.delay); setTooltipText(orig.tooltipText);
       setTooltipDuration(orig.tooltipDuration); setDescription(orig.description);
-      setParticleType(orig.particleType); setFormDirection(orig.direction); setFormRoundTrip(orig.roundTrip);
+      setParticleType(orig.particleType); setShowArrow(orig.showArrow); setColor(orig.color);
+      setFormDirection(orig.direction); setFormRoundTrip(orig.roundTrip);
       onPreview(activeEdge.id, orig.protocol, orig.isAsync, orig.duration, orig.delay,
-        orig.tooltipText, orig.tooltipDuration, orig.description, orig.particleType,
+        orig.tooltipText, orig.tooltipDuration, orig.description, orig.particleType, orig.showArrow, orig.color,
         orig.stepNumber, orig.direction, orig.roundTrip);
     },
   }), [activeEdge.id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration,
-       description, particleType, stepNumber, formDirection, formRoundTrip, orig, onSubmit, onPreview]);
+       description, particleType, showArrow, color, stepNumber, formDirection, formRoundTrip, orig, onSubmit, onPreview]);
 
   const tr = (t: string, e: string) => lang === 'tr' ? t : e;
 
@@ -160,13 +181,64 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
         </div>
       </div>
 
-      {/* Async toggle inline */}
+      {/* Async toggle + Arrow toggle — side by side */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center justify-between">
+          <Label>{tr('Asenkron', 'Async')}</Label>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={isAsync} onChange={(e) => { setIsAsync(e.target.checked); preview({ ia: e.target.checked }); }} className="sr-only peer" />
+            <div className="w-8 h-4 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500" />
+          </label>
+        </div>
+        <div className="flex items-center justify-between">
+          <Label>{tr('Ok Ucu', 'Arrow')}</Label>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={showArrow} onChange={(e) => { setShowArrow(e.target.checked); preview({ arr: e.target.checked }); }} className="sr-only peer" />
+            <div className="w-8 h-4 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500" />
+          </label>
+        </div>
+      </div>
+
+      {/* Edge Color — preset swatches + native color picker */}
       <div className="flex items-center justify-between">
-        <Label>{tr('Asenkron Akış', 'Async Mode')}</Label>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" checked={isAsync} onChange={(e) => { setIsAsync(e.target.checked); preview({ ia: e.target.checked }); }} className="sr-only peer" />
-          <div className="w-8 h-4 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500" />
-        </label>
+        <Label>{tr('Renk', 'Color')}</Label>
+        <div className="flex items-center gap-1.5">
+          {/* Preset swatches */}
+          {EDGE_COLORS.map((ec) => (
+            <button
+              key={ec.value}
+              onClick={() => { setColor(ec.value); preview({ clr: ec.value }); }}
+              className={`w-5 h-5 rounded-full ${ec.cls} hover:scale-110 active:scale-90 transition-transform cursor-pointer ${
+                color === ec.value
+                  ? 'ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900'
+                  : ''
+              }`}
+              title={ec.label}
+            />
+          ))}
+          {/* Divider */}
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+          {/* Custom hex picker */}
+          <div className="relative">
+            <input
+              type="color"
+              value={color || '#94a3b8'}
+              onChange={(e) => { setColor(e.target.value); preview({ clr: e.target.value }); }}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              title="Custom color"
+            />
+            <div
+              className="w-5 h-5 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+              style={{ backgroundColor: color || undefined }}
+            >
+              {!color && (
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                  <path d="M4.5 1v7M1 4.5h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-slate-400" />
+                </svg>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Duration + Delay — side by side */}

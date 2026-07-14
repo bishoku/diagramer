@@ -857,7 +857,11 @@ export const generateStandaloneHtml = (
         return totalEnd;
       }
 
-      // Process root-level steps grouped by stepNumber
+      // Process root-level steps grouped by stepNumber.
+      //
+      // SOURCE-CHAIN DEPENDENCY MODEL: each seq's start is derived from the
+      // latest end of any seq that targeted its source node (direct predecessor).
+      // Falls back to global floor when no source-chain predecessor exists.
       const rootSteps = sortedSeqs.filter(seq => !nested[seq.id]);
       const rootGroups = {};
       rootSteps.forEach(seq => {
@@ -865,25 +869,35 @@ export const generateStandaloneHtml = (
         rootGroups[seq.stepNumber].push(seq);
       });
 
-      let groupStartTime = 0;
+      const nodeEndTime = {};  // nodeId -> latest end time of seqs targeting it
+      let globalFloor = 0;
 
       Object.keys(rootGroups).map(Number).sort((a, b) => a - b).forEach(gn => {
         const group = rootGroups[gn];
-        const snapshot = groupStartTime;
-        let maxSyncEnd = groupStartTime;
+        let maxSyncEnd = globalFloor;
 
         group.forEach(seq => {
+          const { src, tgt } = seqNodes[seq.id];
           const tConf = timelines[seq.id] || { duration: 1000, delay: 0 };
           const delay = tConf.delay ?? 0;
-          const startTime = snapshot + delay;
+
+          // Primary: source-chain predecessor end. Fallback: global floor.
+          const sourceChainEnd = nodeEndTime[src]; // undefined if no predecessor
+          const baseStart = sourceChainEnd !== undefined ? sourceChainEnd : globalFloor;
+          const startTime = baseStart + delay;
+
           const totalEnd = processStep(seq, startTime);
+
+          if (!seq.isAsync && tgt) {
+            nodeEndTime[tgt] = Math.max(nodeEndTime[tgt] || 0, totalEnd);
+          }
 
           if (!seq.isAsync && totalEnd > maxSyncEnd) {
             maxSyncEnd = totalEnd;
           }
         });
 
-        groupStartTime = maxSyncEnd;
+        globalFloor = maxSyncEnd;
       });
 
       return schedules.sort((a, b) => a.start - b.start);

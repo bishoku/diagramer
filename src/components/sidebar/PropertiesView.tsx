@@ -17,7 +17,7 @@ interface PropertiesViewProps {
   onApplyEdge: (
     id: string, protocol: string, isAsync: boolean, duration: number, delay: number,
     tooltipText: string, tooltipDuration: number, description: string,
-    particleType: ParticleType | undefined,
+    particleType: ParticleType | undefined, showArrow: boolean, color: string,
     stepNumber: number, direction: 'forward' | 'reverse', isRoundTrip: boolean
   ) => void;
   onCancelEdge: () => void;
@@ -110,10 +110,10 @@ export const PropertiesView: React.FC<PropertiesViewProps> = ({
   const handlePreviewEdge = useCallback((
     id: string, protocol: string, isAsync: boolean, duration: number, delay: number,
     tooltipText: string, tooltipDuration: number, description: string,
-    particleType: ParticleType,
+    particleType: ParticleType, showArrow: boolean, color: string,
     stepNumber: number, direction: 'forward' | 'reverse', isRoundTrip: boolean
   ) => {
-    updateEdgeDetails(id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType);
+    updateEdgeDetails(id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType, showArrow, color);
     const seq = useAppStore.getState().logicalData.sequences.find((s) => s.edgeId === id);
     if (seq) {
       if (seq.stepNumber !== stepNumber) setSequenceStepOrder(seq.id, stepNumber);

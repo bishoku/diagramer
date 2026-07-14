@@ -210,6 +210,8 @@ const FlowWrapper: React.FC = () => {
         tooltipDuration: timing?.internalProcess?.duration ?? 1000,
         description: le.description ?? '',
         particleType: le.particleType ?? 'dot',
+        showArrow: le.showArrow ?? false,
+        color: le.color ?? '',
       });
       setActiveNodeProperties(null);
       openRightSidebar();

@@ -70,7 +70,6 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
     targetY,
     sourcePosition,
     targetPosition,
-    markerEnd,
   } = props;
 
   const logicalData = useAppStore((s) => s.logicalData);
@@ -128,19 +127,45 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
   const protocolText = le?.protocol ? `- [${le.protocol}]` : '';
   const stepLabel = stepNums.length > 0 ? `${stepNums.join(', ')}${protocolText}` : '';
 
-  // Determine stroke color and style
-  let strokeColor = '#94a3b8'; // Default slate-400
-  let isEdgeActive = false;
+  // Determine stroke color and style.
+  // - Idle:   custom color (le.color) or slate-400 as default
+  // - Active: same custom color (bolder stroke + matching glow), or indigo when no custom color
+  const hasCustomColor = !!(le?.color);
+  const customColor = le?.color || '#94a3b8';
+  const activeColor = hasCustomColor ? le!.color! : '#6366f1';
 
-  if (isAnimating || isSelected) {
-    strokeColor = '#6366f1'; // Indigo-500 for active or selected
-    isEdgeActive = true;
-  }
+  let isEdgeActive = false;
+  if (isAnimating || isSelected) isEdgeActive = true;
+
+  const strokeColor = isEdgeActive ? activeColor : customColor;
 
   const particleType = resolveParticleType(le?.particleType);
+  const showArrow = le?.showArrow ?? false;
+
+  // Build unique marker IDs per edge+state so the arrowhead color matches the stroke.
+  const markerId = showArrow ? `arrow-${id}-${isEdgeActive ? 'active' : 'idle'}` : undefined;
+  // Arrow fill always equals the stroke color — single source of truth.
+  const markerFill = strokeColor;
 
   return (
     <>
+      {/* Arrowhead marker definition — only rendered when showArrow is enabled */}
+      {showArrow && (
+        <defs>
+          <marker
+            id={markerId}
+            markerWidth="8"
+            markerHeight="8"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M0,0 L0,6 L8,3 z" fill={markerFill} />
+          </marker>
+        </defs>
+      )}
+
       {/* Invisible thicker path to make clicking the edge easier */}
       <path
         d={edgePath}
@@ -157,12 +182,12 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
         d={edgePath}
         fill="none"
         strokeDasharray={isAsync ? '5,5' : undefined}
-        markerEnd={markerEnd}
+        markerEnd={showArrow ? `url(#${markerId})` : undefined}
         className="react-flow__edge-path transition-all duration-150"
         style={{
           stroke: strokeColor,
           strokeWidth: isEdgeActive ? 4 : 2,
-          filter: isEdgeActive ? 'drop-shadow(0 0 6px rgba(99, 102, 241, 0.95))' : undefined,
+          filter: isEdgeActive ? `drop-shadow(0 0 6px ${activeColor}cc)` : undefined,
         }}
       />
       
@@ -206,3 +231,4 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
     </>
   );
 });
+

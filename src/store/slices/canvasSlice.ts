@@ -29,7 +29,9 @@ export interface CanvasSlice {
     tooltipText?: string,
     tooltipDuration?: number,
     description?: string,
-    particleType?: ParticleType
+    particleType?: ParticleType,
+    showArrow?: boolean,
+    color?: string
   ) => void;
   setNodeParent: (nodeId: string, parentId: string | null) => void;
   autoResizeSection: (sectionId: string) => void;
@@ -259,11 +261,13 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     tooltipText?: string,
     tooltipDuration?: number,
     description?: string,
-    particleType?: ParticleType
+    particleType?: ParticleType,
+    showArrow?: boolean,
+    color?: string
   ) => {
     set((state) => {
       const edges = state.logicalData.edges.map((e) =>
-        e.id === id ? { ...e, protocol, isAsync, description, particleType } : e
+        e.id === id ? { ...e, protocol, isAsync, description, particleType, showArrow, color } : e
       );
 
       const seqs = state.logicalData.sequences.filter((s) => s.edgeId === id);

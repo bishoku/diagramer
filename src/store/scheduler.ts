@@ -174,7 +174,28 @@ export const calculateSchedules = (
     return totalEnd;
   }
 
-  // Process root-level steps grouped by stepNumber
+  // Process root-level steps grouped by stepNumber.
+  //
+  // SOURCE-CHAIN DEPENDENCY MODEL
+  // ─────────────────────────────
+  // Instead of a single global cursor that forces every seq in step N to
+  // wait for ALL seqs in step N-1, each seq's start is derived from the
+  // latest completion time of seqs that targeted its own source node
+  // (i.e. its direct predecessor in the data-flow graph).
+  //
+  // If no prior seq has targeted a seq's source node, the algorithm falls
+  // back to the global floor (= max end of all seqs in the previous step
+  // group), preserving the traditional "global barrier" behaviour for
+  // chains that have no explicit source dependency.
+  //
+  // Example where this matters:
+  //   Step 1:  Client → Section-1 (duration 2000ms, includes subflow)
+  //   Step 1:  Client → Gateway-2 (duration 1000ms, independent chain)
+  //   Step 2:  Gateway-2 → Server-2
+  //
+  // Old: Gateway-2 → Server-2 waited until Section-1's subflow finished (t=2000)
+  // New: Gateway-2 → Server-2 starts as soon as Client → Gateway-2 finishes (t=1000)
+
   const rootSteps = sortedSeqs.filter(seq => !nested.has(seq.id));
   const rootGroups: Record<number, SequenceStep[]> = {};
   rootSteps.forEach(seq => {
@@ -182,28 +203,48 @@ export const calculateSchedules = (
     rootGroups[seq.stepNumber].push(seq);
   });
 
-  let groupStartTime = 0;
+  // nodeEndTime[nodeId] = latest end-time of any root-level (non-async) seq
+  // that has *targeted* this node. Updated as seqs are processed.
+  const nodeEndTime = new Map<string, number>();
+
+  // Global floor: falls back to max-sync-end of the previous step group
+  // for seqs that have no direct source-chain predecessor.
+  let globalFloor = 0;
 
   Object.keys(rootGroups).map(Number).sort((a, b) => a - b).forEach(gn => {
     const group = rootGroups[gn];
-    const snapshot = groupStartTime; // snapshot for concurrent root starts within group
-    let maxSyncEnd = groupStartTime;
+    let maxSyncEnd = globalFloor;
 
     group.forEach(seq => {
+      const { src, tgt } = seqNodes.get(seq.id)!;
       const timing = timelines[seq.id] || { sequenceId: seq.id, duration: 1000, delay: 0 };
       const delay = timing.delay ?? 0;
-      const startTime = snapshot + delay;
+
+      // Primary: use the end-time of the seq that most recently targeted this
+      // seq's source node (source-chain dependency).
+      // Fallback: global floor, so seqs with no direct predecessor still
+      // respect the step-number ordering barrier.
+      const sourceChainEnd = nodeEndTime.get(src); // undefined ⟹ no predecessor
+      const baseStart = sourceChainEnd !== undefined ? sourceChainEnd : globalFloor;
+      const startTime = baseStart + delay;
+
       const totalEnd = processStep(seq, startTime);
+
+      // Record when the target node becomes "ready" for subsequent seqs.
+      if (!seq.isAsync && tgt) {
+        nodeEndTime.set(tgt, Math.max(nodeEndTime.get(tgt) ?? 0, totalEnd));
+      }
 
       if (!seq.isAsync && totalEnd > maxSyncEnd) {
         maxSyncEnd = totalEnd;
       }
     });
 
-    groupStartTime = maxSyncEnd;
+    // Advance the global floor to the max sync-end of this step group.
+    // Seqs in the next group that have no direct source-chain predecessor
+    // will start from here.
+    globalFloor = maxSyncEnd;
   });
-
-
 
   return schedules;
 };

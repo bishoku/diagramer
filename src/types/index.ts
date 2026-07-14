@@ -30,9 +30,11 @@ export interface LogicalEdge {
   fromPort: string; // Port ID, e.g. 'right:50' (legacy: 'right' also accepted)
   toPort: string;   // Port ID, e.g. 'left:50' (legacy: 'left' also accepted)
   isAsync: boolean;
-  protocol?: string; // E.g., 'HTTP', 'gRPC', 'WebSocket' (Phase 4)
-  description?: string; // Description shown only in logs
+  protocol?: string;
+  description?: string;
   particleType?: ParticleType;
+  showArrow?: boolean;
+  color?: string; // Custom hex color for the edge line and arrowhead
 }
 
 export interface SequenceStep {
@@ -132,6 +134,8 @@ export interface ActiveEdgeProperties {
   tooltipDuration: number;
   description?: string;
   particleType?: ParticleType;
+  showArrow?: boolean;
+  color?: string;
   isNew?: boolean;
 }
 
@@ -274,7 +278,7 @@ export interface AppState {
   clearCanvas: () => void;
   updateNodeDetails: (id: string, name: string, type: string, theme?: string, handles?: HandleConfig[], displayMode?: 'default' | 'icon-only', rotation?: number, customStyles?: any) => void;
   updateNodeHandles: (nodeId: string, handles: HandleConfig[]) => void;
-  updateEdgeDetails: (edgeId: string, protocol: string, isAsync: boolean, duration: number, delay: number, tooltipText?: string, tooltipDuration?: number, description?: string, particleType?: ParticleType) => void;
+  updateEdgeDetails: (edgeId: string, protocol: string, isAsync: boolean, duration: number, delay: number, tooltipText?: string, tooltipDuration?: number, description?: string, particleType?: ParticleType, showArrow?: boolean, color?: string) => void;
 
   // Active Selection Actions
   setActiveNodeProperties: (props: ActiveNodeProperties | null) => void;
