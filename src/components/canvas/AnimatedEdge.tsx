@@ -73,13 +73,15 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
   } = props;
 
   const logicalData = useAppStore((s) => s.logicalData);
+  const layoutEdges = useAppStore((s) => s.visualData.layoutEdges);
   const le = logicalData.edges.find((e) => e.id === id);
-  const isReversed = le ? le.from !== props.source : false;
+  const ve = layoutEdges[id];
+  const isReversed = le ? le.sourceId !== props.source : false;
 
   const siblingEdges = useMemo(() => {
     if (!le) return [];
     const related = logicalData.edges.filter(
-      (e) => (e.from === le.from && e.to === le.to) || (e.from === le.to && e.to === le.from)
+      (e) => (e.sourceId === le.sourceId && e.targetId === le.targetId) || (e.sourceId === le.targetId && e.targetId === le.sourceId)
     );
     return [...related].sort((a, b) => {
       const aSeqs = logicalData.sequences.filter(s => s.edgeId === a.id);
@@ -101,7 +103,7 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
     offset = start + siblingIndex * step;
   }
 
-  if (le && le.from > le.to) {
+  if (le && le.sourceId > le.targetId) {
     offset = -offset;
   }
 
@@ -127,20 +129,18 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
   const protocolText = le?.protocol ? `- [${le.protocol}]` : '';
   const stepLabel = stepNums.length > 0 ? `${stepNums.join(', ')}${protocolText}` : '';
 
-  // Determine stroke color and style.
-  // - Idle:   custom color (le.color) or slate-400 as default
-  // - Active: same custom color (bolder stroke + matching glow), or indigo when no custom color
-  const hasCustomColor = !!(le?.color);
-  const customColor = le?.color || '#94a3b8';
-  const activeColor = hasCustomColor ? le!.color! : '#6366f1';
+  // Read visual properties from VisualEdge (not from LogicalEdge)
+  const hasCustomColor = !!(ve?.color);
+  const customColor = ve?.color || '#94a3b8';
+  const activeColor = hasCustomColor ? ve!.color! : '#6366f1';
 
   let isEdgeActive = false;
   if (isAnimating || isSelected) isEdgeActive = true;
 
   const strokeColor = isEdgeActive ? activeColor : customColor;
 
-  const particleType = resolveParticleType(le?.particleType);
-  const showArrow = le?.showArrow ?? false;
+  const particleType = resolveParticleType(ve?.particleType);
+  const showArrow = ve?.showArrow ?? false;
 
   // Build unique marker IDs per edge+state so the arrowhead color matches the stroke.
   const markerId = showArrow ? `arrow-${id}-${isEdgeActive ? 'active' : 'idle'}` : undefined;

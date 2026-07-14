@@ -301,8 +301,8 @@ export const TimelinePanel: React.FC = () => {
               ) : (
                 sortedSequences.map((seq) => {
                   const edge = logicalData.edges.find((e) => e.id === seq.edgeId);
-                  const src = edge ? logicalData.nodes.find((n) => n.id === edge.from)?.name ?? edge.from : '?';
-                  const dst = edge ? logicalData.nodes.find((n) => n.id === edge.to)?.name ?? edge.to : '?';
+                  const src = edge ? logicalData.nodes.find((n) => n.id === edge.sourceId)?.name ?? edge.sourceId : '?';
+                  const dst = edge ? logicalData.nodes.find((n) => n.id === edge.targetId)?.name ?? edge.targetId : '?';
                   
                   const isSelected = selectedSequenceId === seq.id;
                   const timing = visualData.timelines[seq.id];

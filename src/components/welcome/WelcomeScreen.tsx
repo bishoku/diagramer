@@ -54,7 +54,7 @@ export const WelcomeScreen: React.FC = () => {
       if (isTauri()) {
         const selected = await open({
           multiple: false,
-          filters: [{ name: 'Diagramer Project', extensions: ['dproj'] }],
+          filters: [{ name: 'YADA Project', extensions: ['dproj'] }],
           title: language === 'tr' ? 'Proje Dosyası Seç' : 'Select Project File',
         });
         if (!selected || typeof selected !== 'string') return;
@@ -404,7 +404,7 @@ export const WelcomeScreen: React.FC = () => {
           </div>
           
           <div className="text-slate-400 dark:text-slate-600 text-[10px] mt-6 text-center">
-            Diagramer v0.1.0 • Faz 1 {language === 'tr' ? 'Tercihler' : 'Preferences'}
+            YADA v0.1.0 • Faz 1 {language === 'tr' ? 'Tercihler' : 'Preferences'}
           </div>
         </div>
 

@@ -61,17 +61,21 @@ export const useCanvasSync = (
           return all;
         });
 
-        if (state.logicalData.edges !== prevState.logicalData.edges) {
+        if (state.logicalData.edges !== prevState.logicalData.edges ||
+            state.visualData.layoutEdges !== prevState.visualData.layoutEdges) {
           setRfEdges(() =>
-            state.logicalData.edges.map((le) => ({
-              id: le.id,
-              type: 'customEdge',
-              source: le.from,
-              target: le.to,
-              sourceHandle: `${le.fromPort}-source`,
-              targetHandle: `${le.toPort}-target`,
-              reconnectable: true,
-            }))
+            state.logicalData.edges.map((le) => {
+              const ve = state.visualData.layoutEdges[le.id];
+              return {
+                id: le.id,
+                type: 'customEdge',
+                source: le.sourceId,
+                target: le.targetId,
+                sourceHandle: ve?.sourceHandle ? `${ve.sourceHandle}-source` : undefined,
+                targetHandle: ve?.targetHandle ? `${ve.targetHandle}-target` : undefined,
+                reconnectable: true,
+              };
+            })
           );
         }
       }
@@ -101,15 +105,18 @@ export const useCanvasSync = (
       return toRfNode(ln, vn);
     });
     
-    const edges: Edge[] = logicalData.edges.map((le) => ({
-      id: le.id,
-      type: 'customEdge',
-      source: le.from,
-      target: le.to,
-      sourceHandle: `${le.fromPort}-source`,
-      targetHandle: `${le.toPort}-target`,
-      reconnectable: true,
-    }));
+    const edges: Edge[] = logicalData.edges.map((le) => {
+      const ve = state.visualData.layoutEdges[le.id];
+      return {
+        id: le.id,
+        type: 'customEdge',
+        source: le.sourceId,
+        target: le.targetId,
+        sourceHandle: ve?.sourceHandle ? `${ve.sourceHandle}-source` : undefined,
+        targetHandle: ve?.targetHandle ? `${ve.targetHandle}-target` : undefined,
+        reconnectable: true,
+      };
+    });
     
     setRfNodes(nodes);
     setRfEdges(edges);

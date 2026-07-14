@@ -9,7 +9,6 @@ interface EdgePropertiesFormProps {
   activeEdge: ActiveEdgeProperties;
   language: string;
   maxSteps: number;
-  sequenceDirection: 'forward' | 'reverse';
   sequenceRoundTrip: boolean;
   onSubmit: (
     id: string, protocol: string, isAsync: boolean, duration: number, delay: number,
@@ -71,7 +70,6 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
   activeEdge,
   language: lang,
   maxSteps,
-  sequenceDirection,
   sequenceRoundTrip,
   onSubmit,
   onPreview,
@@ -83,14 +81,12 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
   const [delay, setDelay] = useState(activeEdge.delay);
   const [tooltipText, setTooltipText] = useState(activeEdge.tooltipText);
   const [tooltipDuration, setTooltipDuration] = useState(activeEdge.tooltipDuration);
-  const [formDirection, setFormDirection] = useState<'forward' | 'reverse'>(sequenceDirection);
   const [formRoundTrip, setFormRoundTrip] = useState(sequenceRoundTrip);
   const [description, setDescription] = useState(activeEdge.description ?? '');
   const [particleType, setParticleType] = useState<ParticleType>(resolveParticleType(activeEdge.particleType));
   const [showArrow, setShowArrow] = useState(activeEdge.showArrow ?? false);
   const [color, setColor] = useState(activeEdge.color ?? DEFAULT_COLOR);
 
-  // Snapshot originals for cancel
   const [orig, setOrig] = useState({
     protocol: activeEdge.protocol, isAsync: activeEdge.isAsync,
     stepNumber: activeEdge.stepNumber, duration: activeEdge.duration,
@@ -99,7 +95,7 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
     particleType: resolveParticleType(activeEdge.particleType),
     showArrow: activeEdge.showArrow ?? false,
     color: activeEdge.color ?? DEFAULT_COLOR,
-    direction: sequenceDirection, roundTrip: sequenceRoundTrip,
+    roundTrip: sequenceRoundTrip,
   });
 
   useEffect(() => {
@@ -111,21 +107,21 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
       particleType: resolveParticleType(activeEdge.particleType),
       showArrow: activeEdge.showArrow ?? false,
       color: activeEdge.color ?? DEFAULT_COLOR,
-      direction: sequenceDirection, roundTrip: sequenceRoundTrip,
+      roundTrip: sequenceRoundTrip,
     };
     setProtocol(snap.protocol); setIsAsync(snap.isAsync); setStepNumber(snap.stepNumber);
     setDuration(snap.duration); setDelay(snap.delay); setTooltipText(snap.tooltipText);
     setTooltipDuration(snap.tooltipDuration); setDescription(snap.description);
     setParticleType(snap.particleType); setShowArrow(snap.showArrow); setColor(snap.color);
-    setFormDirection(snap.direction); setFormRoundTrip(snap.roundTrip);
+    setFormRoundTrip(snap.roundTrip);
     setOrig(snap);
-  }, [activeEdge, sequenceDirection, sequenceRoundTrip]);
+  }, [activeEdge, sequenceRoundTrip]);
 
   // Convenience: preview current values
   const preview = (o?: Partial<{
     p: string; ia: boolean; s: number; d: number; dl: number;
     tt: string; td: number; desc: string; pt: ParticleType; arr: boolean; clr: string;
-    dir: 'forward' | 'reverse'; rt: boolean;
+    rt: boolean;
   }>) =>
     onPreview(
       activeEdge.id,
@@ -133,23 +129,23 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
       o?.d ?? duration, o?.dl ?? delay,
       o?.tt ?? tooltipText, o?.td ?? tooltipDuration,
       o?.desc ?? description, o?.pt ?? particleType, o?.arr ?? showArrow, o?.clr ?? color,
-      o?.s ?? stepNumber, o?.dir ?? formDirection, o?.rt ?? formRoundTrip,
+      o?.s ?? stepNumber, 'forward', o?.rt ?? formRoundTrip,
     );
 
   useImperativeHandle(ref, () => ({
-    submit: () => onSubmit(activeEdge.id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType, showArrow, color, stepNumber, formDirection, formRoundTrip),
+    submit: () => onSubmit(activeEdge.id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType, showArrow, color, stepNumber, 'forward', formRoundTrip),
     cancel: () => {
       setProtocol(orig.protocol); setIsAsync(orig.isAsync); setStepNumber(orig.stepNumber);
       setDuration(orig.duration); setDelay(orig.delay); setTooltipText(orig.tooltipText);
       setTooltipDuration(orig.tooltipDuration); setDescription(orig.description);
       setParticleType(orig.particleType); setShowArrow(orig.showArrow); setColor(orig.color);
-      setFormDirection(orig.direction); setFormRoundTrip(orig.roundTrip);
+      setFormRoundTrip(orig.roundTrip);
       onPreview(activeEdge.id, orig.protocol, orig.isAsync, orig.duration, orig.delay,
         orig.tooltipText, orig.tooltipDuration, orig.description, orig.particleType, orig.showArrow, orig.color,
-        orig.stepNumber, orig.direction, orig.roundTrip);
+        orig.stepNumber, 'forward', orig.roundTrip);
     },
   }), [activeEdge.id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration,
-       description, particleType, showArrow, color, stepNumber, formDirection, formRoundTrip, orig, onSubmit, onPreview]);
+       description, particleType, showArrow, color, stepNumber, formRoundTrip, orig, onSubmit, onPreview]);
 
   const tr = (t: string, e: string) => lang === 'tr' ? t : e;
 
@@ -262,6 +258,7 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
       {/* Simulation mode */}
       <Divider label={tr('Simülasyon', 'Simulation')} />
 
+      {/* Round-trip only */}
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input
@@ -273,21 +270,6 @@ export const EdgePropertiesForm = forwardRef<EdgePropertiesFormRef, EdgeProperti
             {tr('Gidiş-Dönüş', 'Round-Trip')}
           </span>
         </label>
-      </div>
-
-      <div className={`flex gap-3 transition-opacity duration-150 ${formRoundTrip ? 'opacity-30 pointer-events-none' : ''}`}>
-        {(['forward', 'reverse'] as const).map((dir) => (
-          <label key={dir} className="flex items-center gap-1 cursor-pointer">
-            <input
-              type="radio" name="edge-direction" disabled={formRoundTrip}
-              checked={formDirection === dir} onChange={() => { setFormDirection(dir); preview({ dir }); }}
-              className="accent-indigo-600 cursor-pointer w-3.5 h-3.5"
-            />
-            <span className="text-[10px] text-slate-600 dark:text-slate-300">
-              {dir === 'forward' ? tr('İleri (A→B)', 'Fwd (A→B)') : tr('Geri (B→A)', 'Rev (B→A)')}
-            </span>
-          </label>
-        ))}
       </div>
 
       {/* Particle type — picker with preview */}

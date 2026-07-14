@@ -18,11 +18,13 @@ export const calculateSchedules = (
   const sectionIds = new Set(nodes.filter(n => n.type === 'section').map(n => n.id));
 
   // Resolve source/target node IDs for each sequence step
+  // Note: direction field has been removed from SequenceStep.
+  // isRoundTrip implies a return trip A→B→A without needing explicit direction.
   const seqNodes = new Map<string, { src: string; tgt: string }>();
   sortedSeqs.forEach(seq => {
     const edge = edgeMap.get(seq.edgeId);
-    const src = edge ? (seq.direction === 'reverse' ? edge.to : edge.from) : '';
-    const tgt = edge ? (seq.direction === 'reverse' ? edge.from : edge.to) : '';
+    const src = edge ? edge.sourceId : '';
+    const tgt = edge ? edge.targetId : '';
     seqNodes.set(seq.id, { src, tgt });
   });
 
@@ -66,7 +68,7 @@ export const calculateSchedules = (
     const edge = edgeMap.get(seq.edgeId);
     if (!edge) return;
     
-    const fromNode = nodeMap.get(edge.from);
+    const fromNode = nodeMap.get(edge.sourceId);
     if (!fromNode) return;
     
     // If the source node is a child of a section that has an entry step

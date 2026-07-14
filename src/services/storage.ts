@@ -8,9 +8,9 @@ export const isTauri = () => {
 };
 
 // --- Web Environment (LocalStorage) Helpers ---
-const WEB_WORKSPACES_KEY = 'diagrammer_workspaces';
-const WEB_PREFS_KEY = 'diagrammer_preferences';
-const WEB_DIAGRAM_PREFIX = 'diagrammer_data_';
+const WEB_WORKSPACES_KEY = 'yada_workspaces';
+const WEB_PREFS_KEY = 'yada_preferences';
+const WEB_DIAGRAM_PREFIX = 'yada_data_';
 const WEB_GLOBAL_COMPONENTS_DIR = 'virtual://global_components';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -89,14 +89,18 @@ export const StorageService = {
   // ---------------------------------------------------------
   // DIAGRAM DATA
   // ---------------------------------------------------------
-  save_diagram: async (path: string, logicalJson: string, visualJson: string): Promise<void> => {
+  save_diagram: async (path: string, logicalJson: string, visualJson: string, _diagramFileJson?: string): Promise<void> => {
     if (isTauri()) {
       await invoke('save_diagram', { path, logicalJson, visualJson });
       return;
     }
-    // Web Implementation
+    // Web Implementation — store both legacy and enveloped formats for compatibility
     const dataKey = `${WEB_DIAGRAM_PREFIX}${path}`;
-    const payload = { logicalData: JSON.parse(logicalJson), visualData: JSON.parse(visualJson) };
+    const payload = {
+      schemaVersion: JSON.parse(logicalJson).schemaVersion ?? 1,
+      logicalData: JSON.parse(logicalJson),
+      visualData: JSON.parse(visualJson),
+    };
     localStorage.setItem(dataKey, JSON.stringify(payload));
   },
 
@@ -108,7 +112,8 @@ export const StorageService = {
     const dataKey = `${WEB_DIAGRAM_PREFIX}${path}`;
     const dataStr = localStorage.getItem(dataKey);
     if (!dataStr) throw new Error('Diagram data not found');
-    return dataStr; // Returns { logicalData: ..., visualData: ... } as string
+    // Returns { schemaVersion, logicalData, visualData } as string (legacy: just { logicalData, visualData })
+    return dataStr;
   },
 
   // ---------------------------------------------------------

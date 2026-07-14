@@ -13,56 +13,56 @@ export interface HandleConfig {
   originalId?: string; // Tracks the original ID when loaded to allow stable keying/dragging
 }
 
-// --- LOGICAL DATA (Logical Flow - AI Readable) ---
+// --- LOGICAL DATA (Semantic/Topology Layer — AI Readable & Portable) ---
+// This layer answers: "What components exist and how do they communicate?"
+// It contains ZERO visual, coordinate, or animation data.
 export interface LogicalNode {
-  id: string; // E.g., 'node-client-1'
-  type: string; // E.g., 'client', 'gateway', 'server', 'database', 'cache', 'queue', 'section'
-  name: string; // User-defined name
-  parentId?: string; // Section parent reference (for grouped nodes)
-  handles?: HandleConfig[]; // Custom connection points (undefined = default 4 handles)
+  id: string;            // E.g., 'node-client-1'
+  type: string;          // E.g., 'client', 'gateway', 'server', 'database', 'cache', 'queue', 'section'
+  name: string;          // User-defined name
+  parentId?: string;     // Section parent reference (for grouped nodes)
+  properties?: Record<string, unknown>; // Extensible metadata: technology stack, capacity, etc.
 }
 
 export interface LogicalEdge {
-  id: string; // E.g., 'edge-1'
-  step?: number; // Step order for simulations (Phase 3)
-  from: string; // Source Node ID
-  to: string; // Target Node ID
-  fromPort: string; // Port ID, e.g. 'right:50' (legacy: 'right' also accepted)
-  toPort: string;   // Port ID, e.g. 'left:50' (legacy: 'left' also accepted)
-  isAsync: boolean;
+  id: string;              // E.g., 'edge-1'
+  sourceId: string;        // Source Node ID (formerly: from)
+  targetId: string;        // Target Node ID (formerly: to)
+  isAsync: boolean;        // true = event/fire-and-forget; false = sync
   protocol?: string;
   description?: string;
-  particleType?: ParticleType;
-  showArrow?: boolean;
-  color?: string; // Custom hex color for the edge line and arrowhead
+  properties?: Record<string, unknown>; // Extensible metadata: timeout, payload schema, etc.
 }
 
 export interface SequenceStep {
-  id: string; // E.g., 'seq-1'
-  stepNumber: number; // Step execution order group (1, 2, 3...)
-  edgeId: string; // Foreign Key pointing to LogicalEdge.id
-  isAsync: boolean; // True = fire and forget, don't block subsequent stepNumbers
-  direction?: 'forward' | 'reverse'; // Animating particle direction (forward or reverse)
-  isRoundTrip?: boolean; // True = round-trip A -> B -> A for sync responses
+  id: string;              // E.g., 'seq-1'
+  stepNumber: number;      // Step execution order group (1, 2, 3...)
+  edgeId: string;          // Foreign Key → LogicalEdge.id
+  isAsync: boolean;        // True = fire and forget, don't block subsequent stepNumbers
+  isRoundTrip?: boolean;   // True = round-trip A→B→A for sync responses (request+response)
+  // NOTE: 'direction' removed — use the "Swap Source/Target" action on edges instead.
 }
 
 export interface LogicalDiagram {
+  schemaVersion: number;   // Schema version for future-proof migrations (current: 1)
   nodes: LogicalNode[];
   edges: LogicalEdge[];
-  sequences: SequenceStep[]; // Flow logical ordering
+  sequences: SequenceStep[];
 }
 
-// --- VISUAL DATA (Visual and Layout Layer - Human Readable) ---
+// --- VISUAL DATA (Presentation & Layout Layer — Canvas-specific) ---
+// This layer answers: "How is the logical model drawn and animated on the canvas?"
 export interface VisualNode {
-  id: string; // Matches LogicalNode.id
+  id: string;              // Matches LogicalNode.id
   x: number;
   y: number;
   width?: number;
   height?: number;
-  theme?: string; // Optional future color palettes
-  zIndex?: number; // Render order (sections use -1 to appear behind children)
-  displayMode?: 'default' | 'icon-only'; // Phase 7: Sadece ikon
-  rotation?: number; // Phase 7: Döndürme
+  handles?: HandleConfig[]; // Custom connection points (moved from LogicalNode)
+  theme?: string;           // Optional color palette
+  zIndex?: number;          // Render order (sections use -1 to appear behind children)
+  displayMode?: 'default' | 'icon-only';
+  rotation?: number;
   customStyles?: {
     backgroundColor?: string;
     borderColor?: string;
@@ -71,13 +71,23 @@ export interface VisualNode {
   };
 }
 
+// NEW: Visual edge layer (moved from LogicalEdge)
+export interface VisualEdge {
+  id: string;              // Matches LogicalEdge.id
+  sourceHandle?: string;   // Port ID for source (formerly: fromPort)
+  targetHandle?: string;   // Port ID for target (formerly: toPort)
+  particleType?: ParticleType;
+  showArrow?: boolean;
+  color?: string;          // Custom hex color for the edge line and arrowhead
+}
+
 export interface TimelineTiming {
-  sequenceId: string; // Foreign Key pointing to SequenceStep.id
-  duration: number; // Transition transition duration in milliseconds
-  delay: number; // Transition start delay in milliseconds
+  sequenceId: string;      // Foreign Key → SequenceStep.id
+  duration: number;        // Transition duration in milliseconds
+  delay: number;           // Transition start delay in milliseconds
   internalProcess?: {
-    text: string; // Text to show in tooltip bubble
-    duration: number; // Tooltip display duration in milliseconds
+    text: string;          // Text to show in tooltip bubble
+    duration: number;      // Tooltip display duration in milliseconds
   };
 }
 
@@ -86,8 +96,9 @@ export interface VisualDiagram {
     zoom: number;
     pan: { x: number; y: number };
   };
-  layoutNodes: Record<string, VisualNode>; // Quick record access by Node ID
-  timelines: Record<string, TimelineTiming>; // Visual details & timings of the animation sequences
+  layoutNodes: Record<string, VisualNode>;      // Quick record access by Node ID
+  layoutEdges: Record<string, VisualEdge>;      // NEW: Visual edge data by Edge ID
+  timelines: Record<string, TimelineTiming>;    // Visual details & timings of animation sequences
 }
 
 export interface WorkspaceMeta {
@@ -241,16 +252,18 @@ export interface AppState {
   
   // Phase 2 Canvas Actions
   addNode: (logical: LogicalNode, visual: VisualNode) => void;
+  cloneNode: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeDimensions: (id: string, width: number, height: number) => void;
-  addEdge: (edge: LogicalEdge) => void;
+  addEdge: (logical: LogicalEdge, visual: VisualEdge) => void;
   reconnectEdge: (
     edgeId: string,
-    from: string,
-    to: string,
-    fromPort: string,
-    toPort: string
+    sourceId: string,
+    targetId: string,
+    sourceHandle: string,
+    targetHandle: string
   ) => void;
+  swapEdgeDirection: (edgeId: string) => void;
   deleteNode: (id: string) => void;
   deleteEdge: (id: string) => void;
   updateCanvasViewport: (zoom: number, pan: { x: number; y: number }) => void;
@@ -272,13 +285,26 @@ export interface AppState {
   updateSequenceProcess: (seqId: string, text: string, duration: number) => void;
   deleteSequenceStep: (seqId: string) => void;
   setSequenceStepOrder: (seqId: string, stepNumber: number) => void;
-  setSequenceStepDirection: (seqId: string, direction: 'forward' | 'reverse') => void;
   setSequenceStepRoundTrip: (seqId: string, isRoundTrip: boolean) => void;
   toggleSequenceAsync: (seqId: string) => void;
   clearCanvas: () => void;
   updateNodeDetails: (id: string, name: string, type: string, theme?: string, handles?: HandleConfig[], displayMode?: 'default' | 'icon-only', rotation?: number, customStyles?: any) => void;
   updateNodeHandles: (nodeId: string, handles: HandleConfig[]) => void;
-  updateEdgeDetails: (edgeId: string, protocol: string, isAsync: boolean, duration: number, delay: number, tooltipText?: string, tooltipDuration?: number, description?: string, particleType?: ParticleType, showArrow?: boolean, color?: string) => void;
+  updateEdgeDetails: (
+    edgeId: string,
+    // Logical fields:
+    protocol: string,
+    isAsync: boolean,
+    description?: string,
+    // Visual/timeline fields:
+    duration?: number,
+    delay?: number,
+    tooltipText?: string,
+    tooltipDuration?: number,
+    particleType?: ParticleType,
+    showArrow?: boolean,
+    color?: string
+  ) => void;
 
   // Active Selection Actions
   setActiveNodeProperties: (props: ActiveNodeProperties | null) => void;

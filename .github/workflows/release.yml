@@ -48,7 +48,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }} # Pushlanan tag adını kullanır (örn: v0.0.1)
-          releaseName: 'Diagrammer ${{ github.ref_name }}'
+          releaseName: 'YADA ${{ github.ref_name }}'
           releaseBody: 'Release version ${{ github.ref_name }}. See below for platform binaries.'
           releaseDraft: false
           prerelease: false

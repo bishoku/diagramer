@@ -47,6 +47,7 @@ const FlowWrapper: React.FC = () => {
   const zustandReconnectEdge = useAppStore((s) => s.reconnectEdge);
   const deleteNode = useAppStore((s) => s.deleteNode);
   const deleteEdge = useAppStore((s) => s.deleteEdge);
+  const cloneNode = useAppStore((s) => s.cloneNode);
   const updateCanvasViewport = useAppStore((s) => s.updateCanvasViewport);
   const pendingDrop = useAppStore((s) => s.pendingDrop);
   const selectedSequenceId = useAppStore((s) => s.selectedSequenceId);
@@ -171,7 +172,7 @@ const FlowWrapper: React.FC = () => {
         name: ln.name,
         type: ln.type,
         theme: vn?.theme ?? 'indigo',
-        handles: ln.handles,
+        handles: vn?.handles,
         displayMode: vn?.displayMode ?? 'default',
         rotation: vn?.rotation ?? 0,
         customStyles: vn?.customStyles ?? {},
@@ -188,7 +189,9 @@ const FlowWrapper: React.FC = () => {
     setActiveNodeProperties(null);
 
     const logicalData = useAppStore.getState().logicalData;
+    const visualData = useAppStore.getState().visualData;
     const le = logicalData.edges.find(e => e.id === edge.id);
+    const ve = visualData.layoutEdges[edge.id];
     const seq = logicalData.sequences.find(s => s.edgeId === edge.id);
     
     if (seq) {
@@ -209,9 +212,9 @@ const FlowWrapper: React.FC = () => {
         tooltipText: timing?.internalProcess?.text ?? '',
         tooltipDuration: timing?.internalProcess?.duration ?? 1000,
         description: le.description ?? '',
-        particleType: le.particleType ?? 'dot',
-        showArrow: le.showArrow ?? false,
-        color: le.color ?? '',
+        particleType: ve?.particleType ?? 'dot',
+        showArrow: ve?.showArrow ?? false,
+        color: ve?.color ?? '',
       });
       setActiveNodeProperties(null);
       openRightSidebar();
@@ -240,8 +243,8 @@ const FlowWrapper: React.FC = () => {
     const edge = logicalData.edges.find((e) => e.id === seq.edgeId);
     if (!edge) return;
 
-    const sourceNode = visualDataRef.current.layoutNodes[edge.from];
-    const targetNode = visualDataRef.current.layoutNodes[edge.to];
+    const sourceNode = visualDataRef.current.layoutNodes[edge.sourceId];
+    const targetNode = visualDataRef.current.layoutNodes[edge.targetId];
     if (!sourceNode || !targetNode) return;
 
     const logicalNodes = logicalData.nodes;
@@ -259,8 +262,8 @@ const FlowWrapper: React.FC = () => {
       return { x: v.x, y: v.y };
     };
 
-    const sourcePos = getAbsolutePos(edge.from);
-    const targetPos = getAbsolutePos(edge.to);
+    const sourcePos = getAbsolutePos(edge.sourceId);
+    const targetPos = getAbsolutePos(edge.targetId);
 
     const sourceW = sourceNode.width ?? 120;
     const sourceH = sourceNode.height ?? 80;
@@ -489,7 +492,7 @@ const FlowWrapper: React.FC = () => {
       }
 
       const edgeId = `edge-${logicalFrom}-${logicalTo}-${Date.now()}`;
-      const newEdge: Edge = {
+      const newRfEdge: Edge = {
         id: edgeId,
         type: 'customEdge',
         source: connection.source,
@@ -498,16 +501,26 @@ const FlowWrapper: React.FC = () => {
         targetHandle: connection.targetHandle ?? undefined,
       };
       
-      setRfEdges((eds) => addEdge(newEdge, eds));
+      setRfEdges((eds) => addEdge(newRfEdge, eds));
       
-      zustandAddEdge({
+      // Create logical edge (topology only)
+      const logicalEdge = {
         id: edgeId,
-        from: logicalFrom,
-        to: logicalTo,
-        fromPort: logicalFromPort,
-        toPort: logicalToPort,
+        sourceId: logicalFrom,
+        targetId: logicalTo,
         isAsync: false,
-      });
+      };
+
+      // Create visual edge (ports + presentation)
+      const sourceHandle = logicalFromPort;
+      const targetHandle = logicalToPort;
+      const visualEdge = {
+        id: edgeId,
+        sourceHandle,
+        targetHandle,
+      };
+
+      zustandAddEdge(logicalEdge, visualEdge);
 
       const seqId = `seq-${Date.now()}`;
       addSequenceStep(
@@ -547,9 +560,9 @@ const FlowWrapper: React.FC = () => {
       if (isPlaying) return;
       if (!newConnection.source || !newConnection.target) return;
       setRfEdges((els) => reconnectEdge(oldEdge, newConnection, els));
-      const fromPort = (newConnection.sourceHandle ?? 'right:50').split('-')[0];
-      const toPort = (newConnection.targetHandle ?? 'left:50').split('-')[0];
-      zustandReconnectEdge(oldEdge.id, newConnection.source, newConnection.target, fromPort, toPort);
+      const sourceHandle = (newConnection.sourceHandle ?? 'right:50').split('-')[0];
+      const targetHandle = (newConnection.targetHandle ?? 'left:50').split('-')[0];
+      zustandReconnectEdge(oldEdge.id, newConnection.source, newConnection.target, sourceHandle, targetHandle);
     },
     [setRfEdges, zustandReconnectEdge]
   );
@@ -613,6 +626,13 @@ const FlowWrapper: React.FC = () => {
     closeMenu();
   }, [menu, setRfNodes, setRfEdges, deleteNode, deleteEdge, closeMenu]);
 
+  const handleCloneElement = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!menu || menu.type !== 'node') return;
+    cloneNode(menu.id);
+    closeMenu();
+  }, [menu, cloneNode, closeMenu]);
+
 
 
   const onPaneClick = useCallback(() => {
@@ -653,11 +673,13 @@ const FlowWrapper: React.FC = () => {
 
       // 3. Find edges to remove (connected to deleted handles)
       const { logicalData } = useAppStore.getState();
+      const { visualData } = useAppStore.getState();
       const edgesToRemove = logicalData.edges.filter(e => {
-        const fromPortId = e.fromPort;
-        const toPortId = e.toPort;
-        if (e.from === id && !idMap.has(fromPortId)) return true;
-        if (e.to === id && !idMap.has(toPortId)) return true;
+        const ve = visualData.layoutEdges[e.id];
+        const fromPortId = ve?.sourceHandle;
+        const toPortId = ve?.targetHandle;
+        if (e.sourceId === id && fromPortId && !idMap.has(fromPortId)) return true;
+        if (e.targetId === id && toPortId && !idMap.has(toPortId)) return true;
         return false;
       });
 
@@ -668,35 +690,40 @@ const FlowWrapper: React.FC = () => {
       const removedIds = new Set(edgesToRemove.map(e => e.id));
       setRfEdges(eds => eds.filter(re => !removedIds.has(re.id)));
 
-      // 4. Update ports of remaining edges that were moved/repositioned
-      const remainingEdges = useAppStore.getState().logicalData.edges.map(e => {
-        let fromPort = e.fromPort;
-        let toPort = e.toPort;
+      // 4. Update ports of remaining edges in the visual layer (handles live in VisualEdge)
+      const currentVisualEdges = { ...useAppStore.getState().visualData.layoutEdges };
+      const remainingEdgeIds = useAppStore.getState().logicalData.edges.map(e => e.id);
+      let visualEdgesChanged = false;
+
+      remainingEdgeIds.forEach(eid => {
+        const ve = currentVisualEdges[eid];
+        if (!ve) return;
+        const le = useAppStore.getState().logicalData.edges.find(e => e.id === eid);
+        if (!le) return;
+
+        let sourceHandle = ve.sourceHandle;
+        let targetHandle = ve.targetHandle;
         let changed = false;
-        
-        if (e.from === id && idMap.has(e.fromPort)) {
-          const newPort = idMap.get(e.fromPort)!;
-          if (fromPort !== newPort) {
-            fromPort = newPort;
-            changed = true;
-          }
+
+        if (le.sourceId === id && sourceHandle && idMap.has(sourceHandle)) {
+          const newHandle = idMap.get(sourceHandle)!;
+          if (sourceHandle !== newHandle) { sourceHandle = newHandle; changed = true; }
         }
-        if (e.to === id && idMap.has(e.toPort)) {
-          const newPort = idMap.get(e.toPort)!;
-          if (toPort !== newPort) {
-            toPort = newPort;
-            changed = true;
-          }
+        if (le.targetId === id && targetHandle && idMap.has(targetHandle)) {
+          const newHandle = idMap.get(targetHandle)!;
+          if (targetHandle !== newHandle) { targetHandle = newHandle; changed = true; }
         }
-        return changed ? { ...e, fromPort, toPort } : e;
+        if (changed) {
+          currentVisualEdges[eid] = { ...ve, sourceHandle, targetHandle };
+          visualEdgesChanged = true;
+        }
       });
 
-      useAppStore.setState(state => ({
-        logicalData: {
-          ...state.logicalData,
-          edges: remainingEdges
-        }
-      }));
+      if (visualEdgesChanged) {
+        useAppStore.setState(state => ({
+          visualData: { ...state.visualData, layoutEdges: currentVisualEdges }
+        }));
+      }
 
       // Update React Flow visual edges immediately to prevent flash
       setRfEdges(eds => eds.map(re => {
@@ -870,6 +897,7 @@ const FlowWrapper: React.FC = () => {
         menu={menu}
         onClose={closeMenu}
         onDelete={handleDeleteElement}
+        onClone={handleCloneElement}
       />
     </div>
   );

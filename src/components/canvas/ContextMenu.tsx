@@ -1,5 +1,4 @@
-import React from 'react';
-import { Trash2, X, Info, Clock } from 'lucide-react';
+import { Trash2, X, Info, Clock, Copy } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 interface ContextMenuProps {
@@ -12,11 +11,13 @@ interface ContextMenuProps {
   } | null;
   onClose: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  onClone: (e: React.MouseEvent) => void;
 }
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelete }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelete, onClone }) => {
   const logicalData = useAppStore((state) => state.logicalData);
   const theme = useAppStore((state) => state.theme);
+  const language = useAppStore((state) => state.language);
   const maxSteps = useAppStore((state) => state.maxSteps);
   const setSequenceStepOrder = useAppStore((state) => state.setSequenceStepOrder);
   const addSequenceStep = useAppStore((state) => state.addSequenceStep);
@@ -89,6 +90,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelet
             </button>
           )}
         </>
+      )}
+
+      {/* Clone Action (Only for Nodes) */}
+      {menu.type === 'node' && (
+        <button
+          onClick={onClone}
+          className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 w-full text-left cursor-pointer"
+        >
+          <Copy className="w-4 h-4 text-indigo-500" />
+          <span>{language === 'tr' ? 'Klonla' : 'Clone'}</span>
+        </button>
       )}
 
       {/* Delete Action */}

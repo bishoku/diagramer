@@ -1,24 +1,56 @@
-# Diagrammer (ArchFlow) 🚀
+<div align="center">
+  <!-- PLACEHOLDER: Logo/Banner Image -->
+  <img src="https://via.placeholder.com/800x200/0f172a/ffffff?text=YADA+Banner+Placeholder" alt="YADA Banner" />
 
-Diagrammer is an open-source, desktop-based architecture diagramming and simulation tool built with **Tauri**, **React**, **React Flow**, and **Zustand**. 
+  # YADA (Yet Another Diagram App) 🚀
 
-Unlike static diagramming tools, Diagrammer allows you to define sequence steps on your connections and playback data flow simulations in real-time, helping you visualize complex distributed system interactions and asynchronous processes.
+  **An open-source, interactive architecture diagramming and simulation tool.**
 
-## ✨ Features
+  [![GitHub license](https://img.shields.io/github/license/bishoku/yada)](https://github.com/bishoku/yada/blob/main/LICENSE)
+  [![GitHub stars](https://img.shields.io/github/stars/bishoku/yada)](https://github.com/bishoku/yada/stargazers)
+  [![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
+  [![Tauri](https://img.shields.io/badge/tauri-%2324C8DB.svg?style=flat&logo=tauri&logoColor=white)](https://tauri.app/)
+
+  ### [Try the Live Web Demo here!](https://bishoku.github.io/yada)
+</div>
+
+---
+
+Unlike static diagramming tools, YADA allows you to define sequence steps on your connections and playback data flow simulations in real-time. It helps you visualize complex distributed system interactions and asynchronous processes in an interactive way.
+
+## 📸 Sneak Peek
+
+<div align="center">
+  <!-- PLACEHOLDER: App Screenshot -->
+  <img src="https://via.placeholder.com/800x450/1e293b/94a3b8?text=Placeholder:+App+Screenshot" alt="YADA Screenshot" />
+  
+  <br />
+  <br />
+
+  <!-- PLACEHOLDER: App GIF Demo -->
+  <img src="https://via.placeholder.com/800x450/1e293b/94a3b8?text=Placeholder:+App+Demo+GIF" alt="YADA GIF Demo" />
+</div>
+
+## ✨ Key Features
 
 - **Interactive Architecture Canvas:** Drag and drop various nodes (Client, Server, Database, Cache, Queue, Load Balancer, AWS services, etc.) onto a limitless canvas.
 - **Visual Flow Simulation:** Connect nodes and define steps to create a sequence. Play back the entire flow with adjustable speeds to visualize how data moves through your system.
 - **Timeline Panel:** Manage and sequence your operations using a video-editor-like timeline interface. Adjust durations, delays, and order with ease.
 - **Asynchronous & Synchronous Flows:** Distinguish between blocking synchronous requests and non-blocking asynchronous events natively in your simulations.
-- **Cross-Platform:** Available as a standalone native desktop application for Mac, Windows, and Linux thanks to Tauri.
-- **Theme Support:** Beautiful Dark and Light modes.
+- **Cross-Platform Desktop App:** Available as a standalone native desktop application for Mac, Windows, and Linux.
+- **Theme Support:** Beautiful Dark and Light modes out of the box.
 - **Customizable Nodes & Edges:** Configure protocols (HTTP, gRPC, WebSocket), edge descriptions, tooltips, round-trip times, and more.
+- **Fully Offline:** Works completely offline natively.
+- **Web Export/Import:** Seamlessly export and import your `.dproj` workspaces.
 
 ## 🛠 Tech Stack
 
-- **Frontend:** React 19, TypeScript, TailwindCSS v4, Lucide Icons
+Built with a modern and performant stack:
+
+- **Frontend Core:** React 19, TypeScript
+- **Styling:** TailwindCSS v4, Lucide Icons
 - **State Management:** Zustand (with a modular slice-based architecture)
-- **Canvas Engine:** React Flow (@xyflow/react)
+- **Canvas Engine:** React Flow (`@xyflow/react`)
 - **Desktop Framework:** Tauri v2 (Rust backend)
 - **Build Tool:** Vite
 
@@ -35,8 +67,8 @@ Ensure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/diagrammer.git
-   cd diagrammer
+   git clone https://github.com/bishoku/yada.git
+   cd yada
    ```
 
 2. Install NPM dependencies:
@@ -60,7 +92,7 @@ The compiled binaries will be available in `src-tauri/target/release/`.
 
 ## 🏗 Architecture & Codebase
 
-Diagrammer follows a clean, modular architecture:
+YADA follows a clean, modular architecture:
 
 - `src/components/canvas/`: Contains all React Flow components, custom node definitions, and optimized rendering hooks (`useCanvasSync`, `useNodeAnimation`).
 - `src/components/layout/`: The overall application shell, top bar, sidebars, and panel resizing logic.

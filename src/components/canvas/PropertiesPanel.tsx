@@ -120,7 +120,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       setParticleType(activeEdge.particleType ?? 'circle');
 
       const seq = logicalData.sequences.find((s) => s.edgeId === activeEdge.id);
-      setFormDirection(seq?.direction ?? 'forward');
       setFormRoundTrip(seq?.isRoundTrip ?? false);
     }
   }, [activeEdge, logicalData.sequences]);
@@ -173,8 +172,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     const nodeId = activeNode.id;
     const connected = new Set<string>();
     logicalData.edges.forEach(e => {
-      if (e.from === nodeId) connected.add(e.fromPort);
-      if (e.to === nodeId) connected.add(e.toPort);
+      const ve = (useAppStore.getState().visualData.layoutEdges ?? {})[e.id];
+      if (e.sourceId === nodeId && ve?.sourceHandle) connected.add(ve.sourceHandle);
+      if (e.targetId === nodeId && ve?.targetHandle) connected.add(ve.targetHandle);
     });
     return connected;
   }, [activeNode, logicalData.edges]);

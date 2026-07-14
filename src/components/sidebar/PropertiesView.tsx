@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react';
-import { Settings, ChevronLeft, Save, RotateCcw } from 'lucide-react';
+import { Settings, ChevronLeft, Save, RotateCcw, ArrowLeftRight } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { HandleConfig, LogicalDiagram, VisualDiagram } from '../../types';
 import { ParticleType } from '../../config/particles';
@@ -21,6 +21,8 @@ interface PropertiesViewProps {
     stepNumber: number, direction: 'forward' | 'reverse', isRoundTrip: boolean
   ) => void;
   onCancelEdge: () => void;
+  /** Swaps the source and target of the selected edge */
+  onSwapEdgeDirection?: (edgeId: string) => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export const PropertiesView: React.FC<PropertiesViewProps> = ({
   onApplyNode,
   onApplyEdge,
   onCancelEdge,
+  onSwapEdgeDirection,
 }) => {
   const language = useAppStore((s) => s.language);
   const logicalData = useAppStore((s) => s.logicalData);
@@ -50,7 +53,6 @@ export const PropertiesView: React.FC<PropertiesViewProps> = ({
   const updateNodeDetails = useAppStore((s) => s.updateNodeDetails);
   const updateEdgeDetails = useAppStore((s) => s.updateEdgeDetails);
   const setSequenceStepOrder = useAppStore((s) => s.setSequenceStepOrder);
-  const setSequenceStepDirection = useAppStore((s) => s.setSequenceStepDirection);
   const setSequenceStepRoundTrip = useAppStore((s) => s.setSequenceStepRoundTrip);
   const pushStateToHistory = useAppStore((s) => s.pushStateToHistory);
 
@@ -80,11 +82,12 @@ export const PropertiesView: React.FC<PropertiesViewProps> = ({
     if (!activeNode) return new Set<string>();
     const connected = new Set<string>();
     logicalData.edges.forEach((e) => {
-      if (e.from === activeNode.id) connected.add(e.fromPort);
-      if (e.to === activeNode.id) connected.add(e.toPort);
+      const ve = visualData.layoutEdges[e.id];
+      if (e.sourceId === activeNode.id && ve?.sourceHandle) connected.add(ve.sourceHandle);
+      if (e.targetId === activeNode.id && ve?.targetHandle) connected.add(ve.targetHandle);
     });
     return connected;
-  }, [activeNode, logicalData.edges]);
+  }, [activeNode, logicalData.edges, visualData.layoutEdges]);
 
   const activeEdgeSeq = useMemo(() => {
     if (!activeEdge) return null;
@@ -111,17 +114,18 @@ export const PropertiesView: React.FC<PropertiesViewProps> = ({
     id: string, protocol: string, isAsync: boolean, duration: number, delay: number,
     tooltipText: string, tooltipDuration: number, description: string,
     particleType: ParticleType, showArrow: boolean, color: string,
-    stepNumber: number, direction: 'forward' | 'reverse', isRoundTrip: boolean
+    stepNumber: number, _direction: 'forward' | 'reverse', isRoundTrip: boolean
   ) => {
-    updateEdgeDetails(id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType, showArrow, color);
+    // Logical: protocol, isAsync, description — Visual: duration, delay, tooltip, particleType, etc.
+    updateEdgeDetails(id, protocol, isAsync, description, duration, delay, tooltipText, tooltipDuration, particleType, showArrow, color);
     const seq = useAppStore.getState().logicalData.sequences.find((s) => s.edgeId === id);
     if (seq) {
       if (seq.stepNumber !== stepNumber) setSequenceStepOrder(seq.id, stepNumber);
-      setSequenceStepDirection(seq.id, direction);
+      // direction no longer in SequenceStep — swap via Swap button
       setSequenceStepRoundTrip(seq.id, isRoundTrip);
     }
     setIsDirty(true);
-  }, [updateEdgeDetails, setSequenceStepOrder, setSequenceStepDirection, setSequenceStepRoundTrip]);
+  }, [updateEdgeDetails, setSequenceStepOrder, setSequenceStepRoundTrip]);
 
   // ── Apply ─────────────────────────────────────────────────────────────────
   const handleApply = useCallback(() => {
@@ -183,6 +187,16 @@ export const PropertiesView: React.FC<PropertiesViewProps> = ({
         {isDirty && (
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 animate-pulse" title={tr('Kaydedilmemiş değişiklikler', 'Unsaved changes')} />
         )}
+        {/* Swap Source/Target button — only for edges */}
+        {activeEdge && onSwapEdgeDirection && (
+          <button
+            onClick={() => onSwapEdgeDirection(activeEdge.id)}
+            title={tr('Kaynak ve hedefi yer değiştir', 'Swap source and target')}
+            className="p-1 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors cursor-pointer shrink-0"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* ── Scrollable form body ────────────────────────────────────────────── */}
@@ -204,7 +218,6 @@ export const PropertiesView: React.FC<PropertiesViewProps> = ({
             activeEdge={activeEdge}
             language={language}
             maxSteps={maxSteps}
-            sequenceDirection={activeEdgeSeq?.direction ?? 'forward'}
             sequenceRoundTrip={activeEdgeSeq?.isRoundTrip ?? false}
             onPreview={handlePreviewEdge}
             onSubmit={onApplyEdge}

@@ -15,8 +15,8 @@ export default defineConfig(async () => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.png'],
       manifest: {
-        name: 'Diagrammer',
-        short_name: 'Diagrammer',
+        name: 'YADA',
+        short_name: 'YADA',
         description: 'A powerful architecture diagramming tool',
         theme_color: '#0f172a',
         background_color: '#0f172a',

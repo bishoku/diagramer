@@ -161,7 +161,7 @@ export const TopBar: React.FC = () => {
     if (logicalData.edges.length > 0) {
       text += `\n**${language === 'tr' ? 'Bağlantılar' : 'Connections'}:**\n`;
       logicalData.edges.forEach(edge => {
-        text += `- \`${edge.from}\` → \`${edge.to}\` (Protocol: ${edge.protocol || 'Call'})\n`;
+        text += `- \`${edge.sourceId}\` → \`${edge.targetId}\` (Protocol: ${edge.protocol || 'Call'})\n`;
       });
     }
 
@@ -179,15 +179,13 @@ export const TopBar: React.FC = () => {
         if (!seq || !edge) return;
 
         const syncType = seq.isAsync ? (language === 'tr' ? 'Asenkron' : 'Asynchronous') : (language === 'tr' ? 'Senkron' : 'Synchronous');
-        const directionStr = seq.direction === 'reverse' 
-          ? `\`${edge.to}\` → \`${edge.from}\`` 
-          : `\`${edge.from}\` → \`${edge.to}\``;
+        const directionStr = `\`${edge.sourceId}\` → \`${edge.targetId}\`` + (seq.isRoundTrip ? ' ↔' : '');
 
         text += `${seq.stepNumber}. [${syncType}] ${directionStr} (Protocol: ${edge.protocol || 'Call'}, Timing: ${(s.start/1000).toFixed(2)}s - ${(s.end/1000).toFixed(2)}s)\n`;
         
         const timing = visualData.timelines[s.id];
         if (timing?.internalProcess?.text) {
-          text += `   - Node \`${seq.direction === 'reverse' ? edge.from : edge.to}\` internal process: "${timing.internalProcess.text}" (${(timing.internalProcess.duration/1000).toFixed(2)}s)\n`;
+          text += `   - Node \`${edge.targetId}\` internal process: "${timing.internalProcess.text}" (${(timing.internalProcess.duration/1000).toFixed(2)}s)\n`;
         }
       });
     }

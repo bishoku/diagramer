@@ -77,9 +77,9 @@ export const useEdgeAnimation = (edgeId: string, pathRef: RefObject<SVGPathEleme
           const transitDuration = stepDuration;
           if (elapsed < transitDuration) {
             const progress = Math.min(Math.max(elapsed / transitDuration, 0), 1);
-            actualProgress = activeSeq.direction === 'reverse' ? (1 - progress) : progress;
+            actualProgress = progress;
           } else {
-            actualProgress = activeSeq.direction === 'reverse' ? 0 : 1;
+            actualProgress = 1;
           }
         }
         

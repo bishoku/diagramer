@@ -42,8 +42,8 @@ export const useNodeAnimation = (nodeId: string) => {
           const activeEnd = sched.end + ipDuration;
           if (currentTime < sched.start || currentTime > activeEnd) continue;
 
-          const srcId = seq.direction === 'reverse' ? edge.to : edge.from;
-          const tgtId = seq.direction === 'reverse' ? edge.from : edge.to;
+          const srcId = edge.sourceId;
+          const tgtId = edge.targetId;
           const elapsed = currentTime - sched.start;
           const stepDuration = timing?.duration ?? 1000;
 

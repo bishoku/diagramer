@@ -1,6 +1,6 @@
 export const translations = {
   tr: {
-    welcomeTitle: "Diagramer",
+    welcomeTitle: "YADA",
     recentWorkspaces: "Son Çalışma Alanları",
     openFromDirectory: "Dizinden Aç",
     noWorkspaces: "Kayıtlı çalışma alanı bulunamadı",
@@ -46,7 +46,7 @@ export const translations = {
     maxStepsSetting: "Maksimum Adım Sayısı"
   },
   en: {
-    welcomeTitle: "Diagramer",
+    welcomeTitle: "YADA",
     recentWorkspaces: "Recent Workspaces",
     openFromDirectory: "Open from Directory",
     noWorkspaces: "No registered workspaces found",

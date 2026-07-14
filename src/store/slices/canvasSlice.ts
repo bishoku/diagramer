@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { AppState, LogicalNode, VisualNode, LogicalEdge, HandleConfig, ActiveNodeProperties, ActiveEdgeProperties } from '../../types';
+import { AppState, LogicalNode, VisualNode, LogicalEdge, VisualEdge, HandleConfig, ActiveNodeProperties, ActiveEdgeProperties } from '../../types';
 import { ParticleType } from '../../config/particles';
 import { getLayoutedElements } from '../../utils/layout';
 
@@ -8,10 +8,12 @@ export interface CanvasSlice {
   activeNodeProperties: ActiveNodeProperties | null;
   activeEdgeProperties: ActiveEdgeProperties | null;
   addNode: (logical: LogicalNode, visual: VisualNode) => void;
+  cloneNode: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeDimensions: (id: string, width: number, height: number) => void;
-  addEdge: (edge: LogicalEdge) => void;
-  reconnectEdge: (edgeId: string, from: string, to: string, fromPort: string, toPort: string) => void;
+  addEdge: (logical: LogicalEdge, visual: VisualEdge) => void;
+  reconnectEdge: (edgeId: string, sourceId: string, targetId: string, sourceHandle: string, targetHandle: string) => void;
+  swapEdgeDirection: (edgeId: string) => void;
   deleteNode: (id: string) => void;
   deleteEdge: (id: string) => void;
   updateCanvasViewport: (zoom: number, pan: { x: number; y: number }) => void;
@@ -24,11 +26,11 @@ export interface CanvasSlice {
     edgeId: string,
     protocol: string,
     isAsync: boolean,
-    duration: number,
-    delay: number,
+    description?: string,
+    duration?: number,
+    delay?: number,
     tooltipText?: string,
     tooltipDuration?: number,
-    description?: string,
     particleType?: ParticleType,
     showArrow?: boolean,
     color?: string
@@ -58,7 +60,42 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     get().pushToHistory();
     set((state) => {
       const nodes = [...state.logicalData.nodes, logical];
+      // Handles are now in VisualNode; logical node is lean
       const layoutNodes = { ...state.visualData.layoutNodes, [visual.id]: visual };
+      return {
+        logicalData: { ...state.logicalData, nodes },
+        visualData: { ...state.visualData, layoutNodes },
+        isDirty: true
+      };
+    });
+  },
+
+  cloneNode: (id) => {
+    get().pushToHistory();
+    set((state) => {
+      const originalLogicalNode = state.logicalData.nodes.find((n) => n.id === id);
+      const originalVisualNode = state.visualData.layoutNodes[id];
+      if (!originalLogicalNode || !originalVisualNode) return {};
+
+      const cloneId = `${originalLogicalNode.id}-clone-${Date.now()}`;
+      
+      const clonedLogicalNode: LogicalNode = {
+        ...originalLogicalNode,
+        id: cloneId,
+        name: `${originalLogicalNode.name} (Copy)`,
+      };
+
+      const clonedVisualNode: VisualNode = {
+        ...originalVisualNode,
+        id: cloneId,
+        x: originalVisualNode.x + 40,
+        y: originalVisualNode.y + 40,
+        handles: originalVisualNode.handles ? JSON.parse(JSON.stringify(originalVisualNode.handles)) : undefined,
+      };
+
+      const nodes = [...state.logicalData.nodes, clonedLogicalNode];
+      const layoutNodes = { ...state.visualData.layoutNodes, [cloneId]: clonedVisualNode };
+
       return {
         logicalData: { ...state.logicalData, nodes },
         visualData: { ...state.visualData, layoutNodes },
@@ -93,11 +130,42 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     });
   },
 
-  addEdge: (edge) => {
+  addEdge: (logical, visual) => {
     set((state) => {
-      const edges = [...state.logicalData.edges, edge];
+      const edges = [...state.logicalData.edges, logical];
+      const layoutEdges = { ...state.visualData.layoutEdges, [visual.id]: visual };
       return {
         logicalData: { ...state.logicalData, edges },
+        visualData: { ...state.visualData, layoutEdges },
+        isDirty: true
+      };
+    });
+  },
+
+  swapEdgeDirection: (edgeId) => {
+    get().pushToHistory();
+    set((state) => {
+      const edges = state.logicalData.edges.map((e) => {
+        if (e.id !== edgeId) return e;
+        return { ...e, sourceId: e.targetId, targetId: e.sourceId };
+      });
+
+      // Also swap the visual handles
+      const existingVisualEdge = state.visualData.layoutEdges[edgeId];
+      const layoutEdges = existingVisualEdge
+        ? {
+            ...state.visualData.layoutEdges,
+            [edgeId]: {
+              ...existingVisualEdge,
+              sourceHandle: existingVisualEdge.targetHandle,
+              targetHandle: existingVisualEdge.sourceHandle,
+            },
+          }
+        : state.visualData.layoutEdges;
+
+      return {
+        logicalData: { ...state.logicalData, edges },
+        visualData: { ...state.visualData, layoutEdges },
         isDirty: true
       };
     });
@@ -108,14 +176,18 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     set((state) => {
       const nodes = state.logicalData.nodes.filter((n) => n.id !== id);
       const deletedEdgeIds = state.logicalData.edges
-        .filter((e) => e.from === id || e.to === id)
+        .filter((e) => e.sourceId === id || e.targetId === id)
         .map((e) => e.id);
       
-      const edges = state.logicalData.edges.filter((e) => e.from !== id && e.to !== id);
+      const edges = state.logicalData.edges.filter((e) => e.sourceId !== id && e.targetId !== id);
       const sequences = state.logicalData.sequences.filter((s) => !deletedEdgeIds.includes(s.edgeId));
       
       const layoutNodes = { ...state.visualData.layoutNodes };
       delete layoutNodes[id];
+
+      // Clean up visual edges for deleted logical edges
+      const layoutEdges = { ...state.visualData.layoutEdges };
+      deletedEdgeIds.forEach((eid) => delete layoutEdges[eid]);
       
       const timelines = { ...state.visualData.timelines };
       state.logicalData.sequences.forEach((s) => {
@@ -125,25 +197,33 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
       });
 
       return {
-        logicalData: { nodes, edges, sequences },
-        visualData: { ...state.visualData, layoutNodes, timelines },
+        logicalData: { nodes, edges, sequences, schemaVersion: state.logicalData.schemaVersion },
+        visualData: { ...state.visualData, layoutNodes, layoutEdges, timelines },
         isDirty: true
       };
     });
   },
 
-  reconnectEdge: (edgeId, from, to, fromPort, toPort) => {
+  reconnectEdge: (edgeId, sourceId, targetId, sourceHandle, targetHandle) => {
     get().pushToHistory();
     const state = get();
     const edges = state.logicalData.edges.map((e) => {
       if (e.id === edgeId) {
-        return { ...e, from, to, fromPort, toPort };
+        return { ...e, sourceId, targetId };
       }
       return e;
     });
 
+    // Update handles in visual layer
+    const existingVisualEdge = state.visualData.layoutEdges[edgeId] ?? { id: edgeId };
+    const layoutEdges = {
+      ...state.visualData.layoutEdges,
+      [edgeId]: { ...existingVisualEdge, sourceHandle, targetHandle }
+    };
+
     set({
       logicalData: { ...state.logicalData, edges },
+      visualData: { ...state.visualData, layoutEdges },
       isDirty: true,
     });
   },
@@ -158,6 +238,10 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
       
       const sequences = state.logicalData.sequences.filter((s) => s.edgeId !== id);
       
+      // Clean up visual edge
+      const layoutEdges = { ...state.visualData.layoutEdges };
+      delete layoutEdges[id];
+
       const timelines = { ...state.visualData.timelines };
       deletedSeqIds.forEach((seqId) => {
         delete timelines[seqId];
@@ -165,7 +249,7 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
 
       return {
         logicalData: { ...state.logicalData, edges, sequences },
-        visualData: { ...state.visualData, timelines },
+        visualData: { ...state.visualData, layoutEdges, timelines },
         isDirty: true
       };
     });
@@ -187,10 +271,11 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
   cancelDrag: () => set({ pendingDrop: null }),
 
   clearCanvas: () => set((state) => ({
-    logicalData: { nodes: [], edges: [], sequences: [] },
+    logicalData: { schemaVersion: state.logicalData.schemaVersion, nodes: [], edges: [], sequences: [] },
     visualData: { 
       canvas: state.visualData.canvas, 
       layoutNodes: {}, 
+      layoutEdges: {},
       timelines: {} 
     },
     isDirty: true,
@@ -202,14 +287,14 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
 
   updateNodeDetails: (id, name, type, theme, handles, displayMode, rotation, customStyles) => {
     set((state) => {
+      // Logical: only name and type (handles now live in visual layer)
       const nodes = state.logicalData.nodes.map((n) => 
-        n.id === id ? { ...n, name, type, ...(handles !== undefined ? { handles } : {}) } : n
+        n.id === id ? { ...n, name, type } : n
       );
       const existingVisual = state.visualData.layoutNodes[id] ?? { id, x: 0, y: 0 };
 
       // When orientation changes (horizontal=0 ↔ vertical=90) swap stored
       // width and height so the bounding box instantly matches the new layout.
-      // No CSS transforms are involved — stored w/h IS the bounding box.
       const prevRotation = existingVisual.rotation ?? 0;
       const nextRotation = rotation ?? 0;
       const orientationChanged =
@@ -227,6 +312,8 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
           displayMode,
           rotation: nextRotation,
           customStyles,
+          // Handles now stored in VisualNode
+          ...(handles !== undefined ? { handles } : {}),
           ...(orientationChanged ? { width: prevH, height: prevW } : {}),
         }
       };
@@ -242,11 +329,14 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
   updateNodeHandles: (nodeId, handles) => {
     get().pushToHistory();
     set((state) => {
-      const nodes = state.logicalData.nodes.map((n) =>
-        n.id === nodeId ? { ...n, handles } : n
-      );
+      // Handles are now in VisualNode — update visual layer only
+      const existingVisual = state.visualData.layoutNodes[nodeId] ?? { id: nodeId, x: 0, y: 0 };
+      const layoutNodes = {
+        ...state.visualData.layoutNodes,
+        [nodeId]: { ...existingVisual, handles }
+      };
       return {
-        logicalData: { ...state.logicalData, nodes },
+        visualData: { ...state.visualData, layoutNodes },
         isDirty: true
       };
     });
@@ -256,38 +346,49 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     id: string,
     protocol: string,
     isAsync: boolean,
-    duration: number,
-    delay: number,
+    description?: string,
+    duration?: number,
+    delay?: number,
     tooltipText?: string,
     tooltipDuration?: number,
-    description?: string,
     particleType?: ParticleType,
     showArrow?: boolean,
     color?: string
   ) => {
     set((state) => {
+      // Update logical layer: protocol, isAsync, description only
       const edges = state.logicalData.edges.map((e) =>
-        e.id === id ? { ...e, protocol, isAsync, description, particleType, showArrow, color } : e
+        e.id === id ? { ...e, protocol, isAsync, description } : e
       );
 
-      const seqs = state.logicalData.sequences.filter((s) => s.edgeId === id);
+      // Sync isAsync to sequences
       const sequences = state.logicalData.sequences.map((s) => 
         s.edgeId === id ? { ...s, isAsync } : s
       );
+
+      // Update visual edge layer: particleType, showArrow, color
+      const existingVisualEdge = state.visualData.layoutEdges[id] ?? { id };
+      const layoutEdges = {
+        ...state.visualData.layoutEdges,
+        [id]: { ...existingVisualEdge, particleType, showArrow, color }
+      };
+
+      // Update timeline layer: duration, delay, tooltip
+      const seqs = state.logicalData.sequences.filter((s) => s.edgeId === id);
       const timelines = { ...state.visualData.timelines };
       seqs.forEach((seq) => {
         const existing = timelines[seq.id] || { duration: 1000, delay: 0 };
         timelines[seq.id] = {
           ...existing,
-          duration,
-          delay,
+          duration: duration ?? existing.duration,
+          delay: delay ?? existing.delay,
           internalProcess: tooltipText ? { text: tooltipText, duration: tooltipDuration || 1000 } : undefined
         };
       });
 
       return {
         logicalData: { ...state.logicalData, edges, sequences },
-        visualData: { ...state.visualData, timelines },
+        visualData: { ...state.visualData, layoutEdges, timelines },
         isDirty: true
       };
     });
@@ -359,6 +460,7 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
 
       let nodes: typeof state.logicalData.nodes;
       const layoutNodes = { ...state.visualData.layoutNodes };
+      const layoutEdges = { ...state.visualData.layoutEdges };
       const timelines = { ...state.visualData.timelines };
 
       if (deleteChildren) {
@@ -367,13 +469,14 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
         nodes = state.logicalData.nodes.filter(n => !allDeleteIds.has(n.id));
 
         const deletedEdgeIds = state.logicalData.edges
-          .filter(e => allDeleteIds.has(e.from) || allDeleteIds.has(e.to))
+          .filter(e => allDeleteIds.has(e.sourceId) || allDeleteIds.has(e.targetId))
           .map(e => e.id);
           
-        const edges = state.logicalData.edges.filter(e => !allDeleteIds.has(e.from) && !allDeleteIds.has(e.to));
+        const edges = state.logicalData.edges.filter(e => !allDeleteIds.has(e.sourceId) && !allDeleteIds.has(e.targetId));
         const sequences = state.logicalData.sequences.filter(s => !deletedEdgeIds.includes(s.edgeId));
         
         allDeleteIds.forEach(id => delete layoutNodes[id]);
+        deletedEdgeIds.forEach(eid => delete layoutEdges[eid]);
         
         state.logicalData.sequences.forEach(s => {
           if (deletedEdgeIds.includes(s.edgeId)) {
@@ -382,8 +485,8 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
         });
 
         return {
-          logicalData: { nodes, edges, sequences },
-          visualData: { ...state.visualData, layoutNodes, timelines },
+          logicalData: { ...state.logicalData, nodes, edges, sequences },
+          visualData: { ...state.visualData, layoutNodes, layoutEdges, timelines },
           isDirty: true
         };
       } else {
@@ -403,13 +506,14 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
         });
 
         const deletedEdgeIds = state.logicalData.edges
-          .filter(e => e.from === sectionId || e.to === sectionId)
+          .filter(e => e.sourceId === sectionId || e.targetId === sectionId)
           .map(e => e.id);
           
-        const edges = state.logicalData.edges.filter(e => e.from !== sectionId && e.to !== sectionId);
+        const edges = state.logicalData.edges.filter(e => e.sourceId !== sectionId && e.targetId !== sectionId);
         const sequences = state.logicalData.sequences.filter(s => !deletedEdgeIds.includes(s.edgeId));
         
         delete layoutNodes[sectionId];
+        deletedEdgeIds.forEach(eid => delete layoutEdges[eid]);
         
         state.logicalData.sequences.forEach(s => {
           if (deletedEdgeIds.includes(s.edgeId)) {
@@ -418,8 +522,8 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
         });
 
         return {
-          logicalData: { nodes, edges, sequences },
-          visualData: { ...state.visualData, layoutNodes, timelines },
+          logicalData: { ...state.logicalData, nodes, edges, sequences },
+          visualData: { ...state.visualData, layoutNodes, layoutEdges, timelines },
           isDirty: true
         };
       }
@@ -450,15 +554,15 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
       };
     });
 
-    // 2. Map edges so that if source/target is inside a section, it points to the section itself.
+    // 2. Map edges: if source/target is inside a section, point to section.
     // Discard edges where both source and target map to the same section.
     const mappedEdges: { id: string; source: string; target: string }[] = [];
     edges.forEach((edge) => {
-      const parentSrc = nodeParentMap.get(edge.from);
-      const parentTgt = nodeParentMap.get(edge.to);
+      const parentSrc = nodeParentMap.get(edge.sourceId);
+      const parentTgt = nodeParentMap.get(edge.targetId);
 
-      const actualSource = parentSrc || edge.from;
-      const actualTarget = parentTgt || edge.to;
+      const actualSource = parentSrc || edge.sourceId;
+      const actualTarget = parentTgt || edge.targetId;
 
       if (actualSource !== actualTarget) {
         mappedEdges.push({
@@ -472,7 +576,7 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     // 3. Calculate layout
     const layouted = getLayoutedElements(rfNodes, mappedEdges as any, direction);
 
-    // 4. Update coordinates only for the top-level nodes that Dagre processed
+    // 4. Update coordinates only for the top-level nodes Dagre processed
     const layoutNodes = { ...state.visualData.layoutNodes };
     layouted.forEach((node) => {
       layoutNodes[node.id] = {
@@ -482,26 +586,24 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
       };
     });
 
-    // Update edge connection ports based on layout direction (excluding internal section edges)
-    const fromPort: string = direction === 'TB' ? 'bottom:50' : 'right:50';
-    const toPort: string = direction === 'TB' ? 'top:50' : 'left:50';
-    const updatedEdges = edges.map((edge) => {
-      const parentSrc = nodeParentMap.get(edge.from);
-      const parentTgt = nodeParentMap.get(edge.to);
+    // Update edge handles in visual layer based on layout direction (excluding internal section edges)
+    const newSourceHandle: string = direction === 'TB' ? 'bottom:50' : 'right:50';
+    const newTargetHandle: string = direction === 'TB' ? 'top:50' : 'left:50';
+    const layoutEdges = { ...state.visualData.layoutEdges };
+    edges.forEach((edge) => {
+      const parentSrc = nodeParentMap.get(edge.sourceId);
+      const parentTgt = nodeParentMap.get(edge.targetId);
       if (parentSrc && parentTgt && parentSrc === parentTgt) {
-        // Internal to a section, keep original ports
-        return edge;
+        // Internal to a section, keep original handles
+        return;
       }
-      return {
-        ...edge,
-        fromPort,
-        toPort
-      };
+      const existingVE = layoutEdges[edge.id] ?? { id: edge.id };
+      layoutEdges[edge.id] = { ...existingVE, sourceHandle: newSourceHandle, targetHandle: newTargetHandle };
     });
 
     set({
-      logicalData: { ...state.logicalData, edges: updatedEdges },
-      visualData: { ...state.visualData, layoutNodes },
+      logicalData: { ...state.logicalData },
+      visualData: { ...state.visualData, layoutNodes, layoutEdges },
       layoutVersion: state.layoutVersion + 1,
       isDirty: true
     });

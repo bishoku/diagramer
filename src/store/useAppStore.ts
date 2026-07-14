@@ -44,8 +44,8 @@ export const useAppStore = create<AppState>()((set, get, store) => {
     ...createHistorySlice(...a),
 
     // Phase 2 Canvas Initial State
-    logicalData: { nodes: [], edges: [], sequences: [] },
-    visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, timelines: {} },
+    logicalData: { schemaVersion: 1, nodes: [], edges: [], sequences: [] },
+    visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, layoutEdges: {}, timelines: {} },
     schedules: {}
   };
 });
@@ -68,10 +68,17 @@ const performSave = async (): Promise<boolean> => {
     
     await StorageService.save_workspace(JSON.stringify(freshState.currentWorkspace));
     
+    // Wrap with schemaVersion envelope for forward-compatible loading
+    const diagramFile = {
+      schemaVersion: freshState.logicalData.schemaVersion ?? 1,
+      logical: freshState.logicalData,
+      visual: freshState.visualData,
+    };
     await StorageService.save_diagram( 
       path,
       JSON.stringify(freshState.logicalData),
-      JSON.stringify(freshState.visualData)
+      JSON.stringify(freshState.visualData),
+      JSON.stringify(diagramFile)
     );
     
     const afterSaveState = useAppStore.getState();

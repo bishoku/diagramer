@@ -10,16 +10,16 @@ describe('calculateSchedules', () => {
 
   it('should schedule basic sequential steps correctly', () => {
     const sequences: SequenceStep[] = [
-      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: false, isRoundTrip: false, direction: 'forward' },
-      { id: 'seq-2', stepNumber: 2, edgeId: 'edge-2', isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: false, isRoundTrip: false },
+      { id: 'seq-2', stepNumber: 2, edgeId: 'edge-2', isAsync: false, isRoundTrip: false },
     ];
     const timelines: Record<string, TimelineTiming> = {
       'seq-1': { sequenceId: 'seq-1', duration: 1000, delay: 0 },
       'seq-2': { sequenceId: 'seq-2', duration: 1500, delay: 200 },
     };
     const edges: LogicalEdge[] = [
-      { id: 'edge-1', from: 'node-1', to: 'node-2', fromPort: 'right', toPort: 'left', isAsync: false },
-      { id: 'edge-2', from: 'node-2', to: 'node-3', fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-1', sourceId: 'node-1', targetId: 'node-2', isAsync: false },
+      { id: 'edge-2', sourceId: 'node-2', targetId: 'node-3', isAsync: false },
     ];
     const nodes: LogicalNode[] = [
       { id: 'node-1', type: 'server', name: 'N1' },
@@ -38,16 +38,16 @@ describe('calculateSchedules', () => {
   it('should schedule parallel steps concurrently', () => {
     // Both sequences have stepNumber: 1
     const sequences: SequenceStep[] = [
-      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: false, isRoundTrip: false, direction: 'forward' },
-      { id: 'seq-2', stepNumber: 1, edgeId: 'edge-2', isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: false, isRoundTrip: false },
+      { id: 'seq-2', stepNumber: 1, edgeId: 'edge-2', isAsync: false, isRoundTrip: false },
     ];
     const timelines: Record<string, TimelineTiming> = {
       'seq-1': { sequenceId: 'seq-1', duration: 1000, delay: 100 },
       'seq-2': { sequenceId: 'seq-2', duration: 1200, delay: 300 },
     };
     const edges: LogicalEdge[] = [
-      { id: 'edge-1', from: 'node-1', to: 'node-2', fromPort: 'right', toPort: 'left', isAsync: false },
-      { id: 'edge-2', from: 'node-1', to: 'node-3', fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-1', sourceId: 'node-1', targetId: 'node-2', isAsync: false },
+      { id: 'edge-2', sourceId: 'node-1', targetId: 'node-3', isAsync: false },
     ];
     const nodes: LogicalNode[] = [
       { id: 'node-1', type: 'server', name: 'N1' },
@@ -64,16 +64,16 @@ describe('calculateSchedules', () => {
 
   it('should schedule async steps and not block subsequent steps', () => {
     const sequences: SequenceStep[] = [
-      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: true, isRoundTrip: false, direction: 'forward' },
-      { id: 'seq-2', stepNumber: 2, edgeId: 'edge-2', isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: true, isRoundTrip: false },
+      { id: 'seq-2', stepNumber: 2, edgeId: 'edge-2', isAsync: false, isRoundTrip: false },
     ];
     const timelines: Record<string, TimelineTiming> = {
       'seq-1': { sequenceId: 'seq-1', duration: 1000, delay: 0 },
       'seq-2': { sequenceId: 'seq-2', duration: 1000, delay: 0 },
     };
     const edges: LogicalEdge[] = [
-      { id: 'edge-1', from: 'node-1', to: 'node-2', fromPort: 'right', toPort: 'left', isAsync: true },
-      { id: 'edge-2', from: 'node-2', to: 'node-3', fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-1', sourceId: 'node-1', targetId: 'node-2', isAsync: true },
+      { id: 'edge-2', sourceId: 'node-2', targetId: 'node-3', isAsync: false },
     ];
     const nodes: LogicalNode[] = [
       { id: 'node-1', type: 'server', name: 'N1' },
@@ -91,7 +91,7 @@ describe('calculateSchedules', () => {
 
   it('should handle round-trip steps with internal process timing', () => {
     const sequences: SequenceStep[] = [
-      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: false, isRoundTrip: true, direction: 'forward' },
+      { id: 'seq-1', stepNumber: 1, edgeId: 'edge-1', isAsync: false, isRoundTrip: true },
     ];
     const timelines: Record<string, TimelineTiming> = {
       'seq-1': { 
@@ -102,7 +102,7 @@ describe('calculateSchedules', () => {
       },
     };
     const edges: LogicalEdge[] = [
-      { id: 'edge-1', from: 'node-1', to: 'node-2', fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-1', sourceId: 'node-1', targetId: 'node-2', isAsync: false },
     ];
     const nodes: LogicalNode[] = [
       { id: 'node-1', type: 'server', name: 'N1' },
@@ -120,16 +120,16 @@ describe('calculateSchedules', () => {
 
   it('should handle nested sections correctly', () => {
     const sequences: SequenceStep[] = [
-      { id: 'seq-entry', stepNumber: 1, edgeId: 'edge-entry', isAsync: false, isRoundTrip: false, direction: 'forward' },
-      { id: 'seq-internal', stepNumber: 2, edgeId: 'edge-internal', isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-entry', stepNumber: 1, edgeId: 'edge-entry', isAsync: false, isRoundTrip: false },
+      { id: 'seq-internal', stepNumber: 2, edgeId: 'edge-internal', isAsync: false, isRoundTrip: false },
     ];
     const timelines: Record<string, TimelineTiming> = {
       'seq-entry': { sequenceId: 'seq-entry', duration: 1000, delay: 0 },
       'seq-internal': { sequenceId: 'seq-internal', duration: 800, delay: 100 },
     };
     const edges: LogicalEdge[] = [
-      { id: 'edge-entry', from: 'node-outside', to: 'section-container', fromPort: 'right', toPort: 'left', isAsync: false },
-      { id: 'edge-internal', from: 'node-inside-1', to: 'node-inside-2', fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-entry', sourceId: 'node-outside', targetId: 'section-container', isAsync: false },
+      { id: 'edge-internal', sourceId: 'node-inside-1', targetId: 'node-inside-2', isAsync: false },
     ];
     const nodes: LogicalNode[] = [
       { id: 'node-outside', type: 'server', name: 'Outside' },
@@ -156,12 +156,12 @@ describe('calculateSchedules', () => {
     // Client → Gateway-2 finishes — NOT after Section-1's subflow.
     const sequences: SequenceStep[] = [
       // Step 1 — parallel
-      { id: 'seq-entry-section', stepNumber: 1, edgeId: 'edge-client-section', isAsync: false, isRoundTrip: false, direction: 'forward' },
-      { id: 'seq-client-gw2',   stepNumber: 1, edgeId: 'edge-client-gw2',    isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-entry-section', stepNumber: 1, edgeId: 'edge-client-section', isAsync: false, isRoundTrip: false },
+      { id: 'seq-client-gw2',   stepNumber: 1, edgeId: 'edge-client-gw2',    isAsync: false, isRoundTrip: false },
       // Step 2 — sequenced inside section (nested automatically)
-      { id: 'seq-gw1-srv1',     stepNumber: 2, edgeId: 'edge-gw1-srv1',      isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-gw1-srv1',     stepNumber: 2, edgeId: 'edge-gw1-srv1',      isAsync: false, isRoundTrip: false },
       // Step 2 — independent chain from Gateway-2
-      { id: 'seq-gw2-srv2',     stepNumber: 2, edgeId: 'edge-gw2-srv2',      isAsync: false, isRoundTrip: false, direction: 'forward' },
+      { id: 'seq-gw2-srv2',     stepNumber: 2, edgeId: 'edge-gw2-srv2',      isAsync: false, isRoundTrip: false },
     ];
     const timelines: Record<string, TimelineTiming> = {
       'seq-entry-section': { sequenceId: 'seq-entry-section', duration: 2000, delay: 0 },
@@ -170,10 +170,10 @@ describe('calculateSchedules', () => {
       'seq-gw2-srv2':      { sequenceId: 'seq-gw2-srv2',      duration: 1000, delay: 0 },
     };
     const edges: LogicalEdge[] = [
-      { id: 'edge-client-section', from: 'node-client',  to: 'section-1',   fromPort: 'right', toPort: 'left', isAsync: false },
-      { id: 'edge-client-gw2',     from: 'node-client',  to: 'node-gw2',    fromPort: 'right', toPort: 'left', isAsync: false },
-      { id: 'edge-gw1-srv1',       from: 'node-gw1',     to: 'node-srv1',   fromPort: 'right', toPort: 'left', isAsync: false },
-      { id: 'edge-gw2-srv2',       from: 'node-gw2',     to: 'node-srv2',   fromPort: 'right', toPort: 'left', isAsync: false },
+      { id: 'edge-client-section', sourceId: 'node-client',  targetId: 'section-1',   isAsync: false },
+      { id: 'edge-client-gw2',     sourceId: 'node-client',  targetId: 'node-gw2',    isAsync: false },
+      { id: 'edge-gw1-srv1',       sourceId: 'node-gw1',     targetId: 'node-srv1',   isAsync: false },
+      { id: 'edge-gw2-srv2',       sourceId: 'node-gw2',     targetId: 'node-srv2',   isAsync: false },
     ];
     const nodes: LogicalNode[] = [
       { id: 'node-client', type: 'client',  name: 'Client' },

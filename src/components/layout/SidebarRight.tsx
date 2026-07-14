@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Terminal, Activity, ArrowRight, ArrowLeft, ArrowRightLeft, CornerDownRight, Server, Layers } from 'lucide-react';
+import { Terminal, Activity, ArrowRight, ArrowRightLeft, CornerDownRight, Server, Layers } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { NodeRegistry } from '../../registry/NodeRegistry';
 
@@ -70,8 +70,8 @@ export const SidebarRight: React.FC = () => {
               const edge = logicalData.edges.find((e) => e.id === seq.edgeId);
               if (!edge) return null;
 
-              const src = logicalData.nodes.find((n) => n.id === edge.from)?.name ?? edge.from;
-              const dst = logicalData.nodes.find((n) => n.id === edge.to)?.name ?? edge.to;
+              const src = logicalData.nodes.find((n) => n.id === edge.sourceId)?.name ?? edge.sourceId;
+              const dst = logicalData.nodes.find((n) => n.id === edge.targetId)?.name ?? edge.targetId;
               const protocol = edge.protocol ?? 'Call';
               
               const isRowActive = activeSequenceIds.includes(seq.id);
@@ -122,20 +122,17 @@ export const SidebarRight: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Main edge mapping text */}
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                    <span className="truncate max-w-[90px]">{seq.direction === 'reverse' ? dst : src}</span>
+                    <span className="truncate max-w-[90px]">{src}</span>
                     <div className="flex flex-col items-center flex-1 min-w-[30px]">
                       <span className="text-[8px] font-mono text-slate-400 dark:text-slate-500 leading-none">({protocol})</span>
                       {seq.isRoundTrip ? (
                         <ArrowRightLeft className={`w-3.5 h-3.5 ${isRowActive ? 'text-emerald-500' : 'text-slate-450'}`} />
-                      ) : seq.direction === 'reverse' ? (
-                        <ArrowLeft className={`w-3.5 h-3.5 ${isRowActive ? 'text-emerald-500' : 'text-slate-450'}`} />
                       ) : (
                         <ArrowRight className={`w-3.5 h-3.5 ${isRowActive ? 'text-emerald-500' : 'text-slate-450'}`} />
                       )}
                     </div>
-                    <span className="truncate max-w-[90px] text-right">{seq.direction === 'reverse' ? src : dst}</span>
+                    <span className="truncate max-w-[90px] text-right">{dst}</span>
                   </div>
 
                   {/* Sub-process bubble detail if exists */}

@@ -67,8 +67,8 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       
       set({ 
         currentWorkspace: ws, 
-        logicalData: { nodes: [], edges: [], sequences: [] },
-        visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, timelines: {} },
+        logicalData: { schemaVersion: 1, nodes: [], edges: [], sequences: [] },
+        visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, layoutEdges: {}, timelines: {} },
         isDirty: false,
         isPlaying: false,
         currentTime: 0,
@@ -89,13 +89,14 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       const resJson = await StorageService.load_workspace(path);
       const ws: WorkspaceMeta = JSON.parse(resJson);
       
-      let logicalData = { nodes: [], edges: [], sequences: [] };
-      let visualData = { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, timelines: {} };
+      let logicalData: import('../../types').LogicalDiagram = { schemaVersion: 1, nodes: [], edges: [], sequences: [] };
+      let visualData: import('../../types').VisualDiagram = { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, layoutEdges: {}, timelines: {} };
       try {
         const diagJson = await StorageService.load_diagram(path);
         const diag = JSON.parse(diagJson);
         if (diag.logicalData && Array.isArray(diag.logicalData.nodes) && Array.isArray(diag.logicalData.edges)) {
           logicalData = {
+            schemaVersion: diag.logicalData.schemaVersion ?? 1,
             nodes: diag.logicalData.nodes,
             edges: diag.logicalData.edges,
             sequences: Array.isArray(diag.logicalData.sequences) ? diag.logicalData.sequences : []
@@ -103,6 +104,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
         } else if (diag.logical) {
           // Backward compatibility for old Tauri JSON format
           logicalData = {
+            schemaVersion: diag.schemaVersion ?? 1,
             nodes: diag.logical.nodes || [],
             edges: diag.logical.edges || [],
             sequences: diag.logical.sequences || []
@@ -110,7 +112,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
         }
         
         if (diag.visualData) {
-          visualData = diag.visualData;
+          visualData = { layoutEdges: {}, ...diag.visualData };
         } else if (diag.visual) {
            // Backward compatibility
            visualData = {
@@ -122,6 +124,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
               }
             },
             layoutNodes: diag.visual.layoutNodes || {},
+            layoutEdges: diag.visual.layoutEdges || {},
             timelines: diag.visual.timelines || {}
           };
         }
@@ -129,10 +132,11 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
         console.error('Error loading diagram data from disk, using empty defaults:', diagErr);
       }
       
+      const migrated = migratePortFormat(logicalData, visualData);
       set({ 
         currentWorkspace: ws, 
-        logicalData: migratePortFormat(logicalData),
-        visualData,
+        logicalData: migrated.logicalData,
+        visualData: migrated.visualData,
         isDirty: false,
         isPlaying: false,
         currentTime: 0,

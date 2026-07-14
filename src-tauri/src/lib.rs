@@ -60,17 +60,17 @@ fn create_workspace(
     name: String,
     description: String,
 ) -> Result<String, String> {
-    // 1. Resolve workspace path: home_dir/.diagramer/name
+    // 1. Resolve workspace path: home_dir/.yada/name
     let home = app_handle
         .path()
         .home_dir()
         .map_err(|e| format!("Failed to get home directory: {}", e))?;
-    let base_dir = home.join(".diagramer");
+    let base_dir = home.join(".yada");
     let ws_dir = base_dir.join(&name);
 
     if ws_dir.exists() {
         return Err(
-            "A workspace or folder with this name already exists in the `.diagramer` directory."
+            "A workspace or folder with this name already exists in the `.yada` directory."
                 .to_string(),
         );
     }
@@ -201,10 +201,10 @@ fn load_preferences(app_handle: AppHandle) -> Result<String, String> {
         .path()
         .home_dir()
         .map_err(|e| format!("Failed to resolve home dir: {}", e))?;
-    let base_dir = home.join(".diagramer");
+    let base_dir = home.join(".yada");
     if !base_dir.exists() {
         fs::create_dir_all(&base_dir)
-            .map_err(|e| format!("Failed to create .diagramer dir: {}", e))?;
+            .map_err(|e| format!("Failed to create .yada dir: {}", e))?;
     }
     let pref_file = base_dir.join("preferences.json");
     if !pref_file.exists() {
@@ -225,10 +225,10 @@ fn save_preferences(app_handle: AppHandle, preferences_json: String) -> Result<(
         .path()
         .home_dir()
         .map_err(|e| format!("Failed to resolve home dir: {}", e))?;
-    let base_dir = home.join(".diagramer");
+    let base_dir = home.join(".yada");
     if !base_dir.exists() {
         fs::create_dir_all(&base_dir)
-            .map_err(|e| format!("Failed to create .diagramer dir: {}", e))?;
+            .map_err(|e| format!("Failed to create .yada dir: {}", e))?;
     }
     let pref_file = base_dir.join("preferences.json");
     fs::write(&pref_file, preferences_json)
@@ -242,7 +242,7 @@ fn get_global_components_dir(app_handle: AppHandle) -> Result<String, String> {
         .path()
         .home_dir()
         .map_err(|e| format!("Failed to resolve home dir: {}", e))?;
-    let components_dir = home.join(".diagramer").join("components");
+    let components_dir = home.join(".yada").join("components");
     if !components_dir.exists() {
         fs::create_dir_all(&components_dir)
             .map_err(|e| format!("Failed to create global components dir: {}", e))?;

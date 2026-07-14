@@ -19,7 +19,7 @@ export const useSectionAnimation = (sectionId: string) => {
         
         const targetSeqs = state.logicalData.sequences.filter((s: any) => {
           const edge = state.logicalData.edges.find((e: any) => e.id === s.edgeId);
-          return edge && edge.to === sectionId;
+          return edge && edge.targetId === sectionId;
         });
         
         for (const seq of targetSeqs) {

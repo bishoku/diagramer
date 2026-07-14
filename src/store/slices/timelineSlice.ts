@@ -23,7 +23,6 @@ export interface TimelineSlice {
   updateSequenceProcess: (seqId: string, text: string, duration: number) => void;
   deleteSequenceStep: (seqId: string) => void;
   setSequenceStepOrder: (seqId: string, stepNumber: number) => void;
-  setSequenceStepDirection: (seqId: string, direction: 'forward' | 'reverse') => void;
   setSequenceStepRoundTrip: (seqId: string, isRoundTrip: boolean) => void;
   toggleSequenceAsync: (seqId: string) => void;
   toggleTimeline: () => void;
@@ -128,18 +127,6 @@ export const createTimelineSlice: StateCreator<AppState, [], [], TimelineSlice> 
     set((state) => {
       const sequences = state.logicalData.sequences.map((s) => 
         s.id === seqId ? { ...s, stepNumber } : s
-      );
-      return {
-        logicalData: { ...state.logicalData, sequences },
-        isDirty: true
-      };
-    });
-  },
-
-  setSequenceStepDirection: (seqId, direction) => {
-    set((state) => {
-      const sequences = state.logicalData.sequences.map((s) => 
-        s.id === seqId ? { ...s, direction } : s
       );
       return {
         logicalData: { ...state.logicalData, sequences },

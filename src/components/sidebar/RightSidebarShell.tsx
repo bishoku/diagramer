@@ -22,10 +22,10 @@ export const RightSidebarShell: React.FC = () => {
   const clearActiveProperties = useAppStore((s) => s.clearActiveProperties);
 
   const updateEdgeDetails = useAppStore((s) => s.updateEdgeDetails);
+  const swapEdgeDirection = useAppStore((s) => s.swapEdgeDirection);
   const deleteEdge = useAppStore((s) => s.deleteEdge);
   const setSelectedSequenceId = useAppStore((s) => s.setSelectedSequenceId);
   const setSequenceStepOrder = useAppStore((s) => s.setSequenceStepOrder);
-  const setSequenceStepDirection = useAppStore((s) => s.setSequenceStepDirection);
   const setSequenceStepRoundTrip = useAppStore((s) => s.setSequenceStepRoundTrip);
   const logicalData = useAppStore((s) => s.logicalData);
 
@@ -51,20 +51,25 @@ export const RightSidebarShell: React.FC = () => {
     id: string, protocol: string, isAsync: boolean, duration: number, delay: number,
     tooltipText: string, tooltipDuration: number, description: string,
     particleType: ParticleType | undefined, showArrow: boolean, color: string,
-    stepNumber: number, direction: 'forward' | 'reverse', isRoundTrip: boolean,
+    stepNumber: number, _direction: 'forward' | 'reverse', isRoundTrip: boolean,
   ) => {
-    updateEdgeDetails(id, protocol, isAsync, duration, delay, tooltipText, tooltipDuration, description, particleType, showArrow, color);
+    // Update logical fields (protocol, isAsync, description) and visual fields (particleType, etc.)
+    updateEdgeDetails(id, protocol, isAsync, description, duration, delay, tooltipText, tooltipDuration, particleType, showArrow, color);
 
     const seq = logicalData.sequences.find((s) => s.edgeId === id);
     if (seq) {
       if (seq.stepNumber !== stepNumber) setSequenceStepOrder(seq.id, stepNumber);
-      setSequenceStepDirection(seq.id, direction);
+      // direction removed from SequenceStep — use swapEdgeDirection action instead
       setSequenceStepRoundTrip(seq.id, isRoundTrip);
     }
 
     // Clear isNew so that closing doesn't delete the edge
     clearActiveProperties();
-  }, [updateEdgeDetails, logicalData.sequences, setSequenceStepOrder, setSequenceStepDirection, setSequenceStepRoundTrip, clearActiveProperties]);
+  }, [updateEdgeDetails, logicalData.sequences, setSequenceStepOrder, setSequenceStepRoundTrip, clearActiveProperties]);
+
+  const handleSwapEdgeDirection = useCallback((edgeId: string) => {
+    swapEdgeDirection(edgeId);
+  }, [swapEdgeDirection]);
 
   const handleCancelEdge = useCallback(() => {
     const current = useAppStore.getState().activeEdgeProperties;
@@ -108,11 +113,12 @@ export const RightSidebarShell: React.FC = () => {
           }`}
         >
           {hasSelection && (
-            <PropertiesView
+          <PropertiesView
               onBack={handleBack}
               onApplyNode={handleApplyNode}
               onApplyEdge={handleApplyEdge}
               onCancelEdge={handleCancelEdge}
+              onSwapEdgeDirection={handleSwapEdgeDirection}
             />
           )}
         </div>

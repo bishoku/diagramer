@@ -66,7 +66,7 @@ export const exportWorkspace = async (
       const savePath = await save({
         title: language === 'tr' ? 'Projeyi Kaydet' : 'Save Project',
         defaultPath: defaultName,
-        filters: [{ name: 'Diagramer Project', extensions: ['dproj'] }]
+        filters: [{ name: 'YADA Project', extensions: ['dproj'] }]
       });
       
       if (!savePath) return;
