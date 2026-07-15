@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { TopBar } from './TopBar';
 import { SidebarLeft } from './SidebarLeft';
 import { RightSidebarShell } from '../sidebar/RightSidebarShell';
@@ -7,11 +7,14 @@ import { useAppStore } from '../../store/useAppStore';
 import { DiagramCanvas } from '../canvas/DiagramCanvas';
 import { TimelinePanel } from './TimelinePanel';
 
+const SequenceDiagramCanvas = lazy(() => import('../sequence/SequenceDiagramCanvas').then(m => ({ default: m.SequenceDiagramCanvas })));
+
 export const MainLayout: React.FC = () => {
   const timelineHeight = useAppStore((s) => s.timelineHeight);
   const timelineOpen = useAppStore((s) => s.timelineOpen);
   const setTimelineHeight = useAppStore((s) => s.setTimelineHeight);
   const language = useAppStore((s) => s.language);
+  const viewMode = useAppStore((s) => s.viewMode);
   const [isResizing, setIsResizing] = useState(false);
   const resizerRef = useRef<HTMLDivElement>(null);
 
@@ -63,7 +66,17 @@ export const MainLayout: React.FC = () => {
           
           {/* Canvas Workspace Area — explicit size required by React Flow */}
           <div className="flex-1 min-h-0 relative" style={{ overflow: 'hidden' }}>
-            <DiagramCanvas />
+            {viewMode === 'freeform' ? (
+              <DiagramCanvas />
+            ) : (
+              <Suspense fallback={
+                <div className="flex items-center justify-center w-full h-full text-slate-400 dark:text-slate-600">
+                  <div className="animate-pulse text-sm font-medium">Loading Sequence Diagram...</div>
+                </div>
+              }>
+                <SequenceDiagramCanvas />
+              </Suspense>
+            )}
           </div>
 
           {/* Resizer Splitter Bar */}

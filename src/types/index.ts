@@ -188,6 +188,9 @@ export interface AppState {
   currentDiagram: DiagramMeta | null;
   isDirty: boolean;
   
+  // Canvas View Mode
+  viewMode: 'freeform' | 'sequence';
+
   // Phase 5 Studio State
   currentView: 'diagram' | 'studio';
   activeComponent: CustomComponentTemplate | null;
@@ -310,6 +313,9 @@ export interface AppState {
   setActiveNodeProperties: (props: ActiveNodeProperties | null) => void;
   setActiveEdgeProperties: (props: ActiveEdgeProperties | null) => void;
   clearActiveProperties: () => void;
+
+  // View Mode
+  toggleViewMode: () => void;
 
   // Layout Actions
   toggleLeftSidebar: () => void;

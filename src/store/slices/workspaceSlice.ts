@@ -39,6 +39,8 @@ export interface WorkspaceSlice {
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
   openRightSidebar: () => void;
+  viewMode: 'freeform' | 'sequence';
+  toggleViewMode: () => void;
   manualSave: () => Promise<void>;
   deleteWorkspace: (path: string) => Promise<void>;
 }
@@ -236,6 +238,8 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
   toggleLeftSidebar: () => set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
   toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
   openRightSidebar: () => set({ rightSidebarOpen: true }),
+  viewMode: 'freeform' as const,
+  toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'freeform' ? 'sequence' as const : 'freeform' as const })),
 
   manualSave: async () => {
     const state = get();

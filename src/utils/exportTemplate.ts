@@ -692,8 +692,8 @@ export const generateStandaloneHtml = (
       const seqNodes = {};
       sortedSeqs.forEach(seq => {
         const edge = edgeMap[seq.edgeId];
-        const src = edge ? (seq.direction === 'reverse' ? edge.to : edge.from) : '';
-        const tgt = edge ? (seq.direction === 'reverse' ? edge.from : edge.to) : '';
+        const src = edge ? (seq.direction === 'reverse' ? edge.targetId : edge.sourceId) : '';
+        const tgt = edge ? (seq.direction === 'reverse' ? edge.sourceId : edge.targetId) : '';
         seqNodes[seq.id] = { src, tgt };
       });
 
@@ -732,7 +732,7 @@ export const generateStandaloneHtml = (
         if (nested[seq.id]) return;
         const edge = edgeMap[seq.edgeId];
         if (!edge) return;
-        const fromNode = nodeMap[edge.from];
+        const fromNode = nodeMap[edge.sourceId];
         if (!fromNode) return;
         if (fromNode.parentId && sectionIds[fromNode.parentId]) {
           const parentStepId = sectionEntrySteps[fromNode.parentId];
@@ -1025,8 +1025,8 @@ export const generateStandaloneHtml = (
       svg.innerHTML = '';
 
       initialData.logicalData.edges.forEach(edge => {
-        const sourceCard = document.getElementById('node-card-' + edge.from);
-        const targetCard = document.getElementById('node-card-' + edge.to);
+        const sourceCard = document.getElementById('node-card-' + edge.sourceId);
+        const targetCard = document.getElementById('node-card-' + edge.targetId);
         if (!sourceCard || !targetCard) return;
 
         const pathData = calculateBezierPath(edge);
@@ -1055,8 +1055,8 @@ export const generateStandaloneHtml = (
               throw new Error('Fallback coordinates');
             }
           } catch(e) {
-            const sAbs = getAbsolutePos(edge.from);
-            const tAbs = getAbsolutePos(edge.to);
+            const sAbs = getAbsolutePos(edge.sourceId);
+            const tAbs = getAbsolutePos(edge.targetId);
             if (sAbs && tAbs) {
               midPt = {
                 x: (sAbs.x + tAbs.x) / 2 + 112,
@@ -1109,10 +1109,10 @@ export const generateStandaloneHtml = (
 
     // Calculate Curved Parallel Bezier coordinates between ports (uses absolute positions for child nodes)
     function calculateBezierPath(edge) {
-      const sourceId = edge.from;
-      const targetId = edge.to;
-      const rawSourcePort = edge.fromPort || 'right:50';
-      const rawTargetPort = edge.toPort || 'left:50';
+      const sourceId = edge.sourceId;
+      const targetId = edge.targetId;
+      const rawSourcePort = edge.sourcePort || 'right:50';
+      const rawTargetPort = edge.targetPort || 'left:50';
 
       // Parse port format: 'side:offset' or legacy 'side' (defaults to 50%)
       function parsePort(portId) {
@@ -1166,7 +1166,7 @@ export const generateStandaloneHtml = (
 
       // Find all parallel edges between the same two nodes (order-independent)
       const siblings = initialData.logicalData.edges.filter(
-        e => (e.from === edge.from && e.to === edge.to) || (e.from === edge.to && e.to === edge.from)
+        e => (e.sourceId === edge.sourceId && e.targetId === edge.targetId) || (e.sourceId === edge.targetId && e.targetId === edge.sourceId)
       ).sort((a, b) => {
         const aSeqs = initialData.logicalData.sequences.filter(s => s.edgeId === a.id);
         const bSeqs = initialData.logicalData.sequences.filter(s => s.edgeId === b.id);
@@ -1187,7 +1187,7 @@ export const generateStandaloneHtml = (
       }
 
       // Negate offset if from node ID is lexicographically greater than to node ID to align vectors physically
-      if (edge.from > edge.to) {
+      if (edge.sourceId > edge.targetId) {
         offset = -offset;
       }
 
@@ -1234,10 +1234,10 @@ export const generateStandaloneHtml = (
         const edge = initialData.logicalData.edges.find(e => e.id === seq.edgeId);
         if (!edge) return;
 
-        const srcNode = initialData.logicalData.nodes.find(n => n.id === edge.from);
-        const dstNode = initialData.logicalData.nodes.find(n => n.id === edge.to);
-        const srcName = srcNode ? srcNode.name : edge.from;
-        const dstName = dstNode ? dstNode.name : edge.to;
+        const srcNode = initialData.logicalData.nodes.find(n => n.id === edge.sourceId);
+        const dstNode = initialData.logicalData.nodes.find(n => n.id === edge.targetId);
+        const srcName = srcNode ? srcNode.name : edge.sourceId;
+        const dstName = dstNode ? dstNode.name : edge.targetId;
 
         const item = document.createElement('div');
         item.id = 'step-item-' + s.id;
@@ -1425,7 +1425,7 @@ export const generateStandaloneHtml = (
 
           // Trigger internal process tooltip
           if (s.internalProcess && time >= s.internalProcess.start && time <= s.internalProcess.end) {
-            const targetNodeId = s.direction === 'reverse' ? edge.from : edge.to;
+            const targetNodeId = s.direction === 'reverse' ? edge.sourceId : edge.targetId;
             const card = document.getElementById('node-card-' + targetNodeId);
             if (card) card.classList.add('processing');
 
@@ -1439,7 +1439,7 @@ export const generateStandaloneHtml = (
           }
 
           // Activate section processing glow when particle has arrived at a section
-          const targetNodeId2 = s.direction === 'reverse' ? edge.from : edge.to;
+          const targetNodeId2 = s.direction === 'reverse' ? edge.sourceId : edge.targetId;
           const targetNode = initialData.logicalData.nodes.find(n => n.id === targetNodeId2);
           if (targetNode && targetNode.type === 'section') {
             const transitDone = s.isRoundTrip ? (elapsed >= s.duration / 2) : (elapsed >= s.duration);
@@ -1450,8 +1450,8 @@ export const generateStandaloneHtml = (
           }
 
           // Node highlighting: light up nodes when the 'ball' is at them
-          const srcNodeId = s.direction === 'reverse' ? edge.to : edge.from;
-          const tgtNodeId = s.direction === 'reverse' ? edge.from : edge.to;
+          const srcNodeId = s.direction === 'reverse' ? edge.targetId : edge.sourceId;
+          const tgtNodeId = s.direction === 'reverse' ? edge.sourceId : edge.targetId;
 
           if (s.isRoundTrip) {
             const halfT = s.duration / 2;

@@ -4,10 +4,12 @@ import { useAppStore } from '../../store/useAppStore';
 import {
   LogOut, Settings, Database, Check, Globe, Moon, Sun,
   PanelLeft, PanelRight, PanelBottom,
-  Undo, Redo, FileDown, Copy, Grid, ChevronDown, Save, Loader2
+  Undo, Redo, FileDown, Copy, Grid, ChevronDown, Save, Loader2,
+  ListOrdered, LayoutDashboard
 } from 'lucide-react';
 import { translations } from '../../i18n/translations';
 import { generateStandaloneHtml } from '../../utils/exportTemplate';
+import { generateSequenceHtml } from '../../utils/exportSequenceTemplate';
 import { exportToPng, exportToGif } from '../../utils/exportMedia';
 import { save } from '@tauri-apps/plugin-dialog';
 import { StorageService, isTauri } from '../../services/storage';
@@ -40,6 +42,8 @@ export const TopBar: React.FC = () => {
   const redo = useAppStore((s) => s.redo);
   const timelineOpen = useAppStore((s) => s.timelineOpen);
   const toggleTimeline = useAppStore((s) => s.toggleTimeline);
+  const viewMode = useAppStore((s) => s.viewMode);
+  const toggleViewMode = useAppStore((s) => s.toggleViewMode);
 
   const t = translations[language];
 
@@ -80,7 +84,10 @@ export const TopBar: React.FC = () => {
   const handleExportHtml = async () => {
     try {
       const defaultName = `${currentWorkspace?.name || 'diagram'}_simulation.html`;
-      const htmlContent = generateStandaloneHtml(logicalData, visualData, libraryComponents);
+      
+      const htmlContent = viewMode === 'sequence'
+        ? generateSequenceHtml(logicalData, useAppStore.getState().schedules, visualData.timelines, theme)
+        : generateStandaloneHtml(logicalData, visualData, libraryComponents);
 
       if (isTauri()) {
         const selectedPath = await save({
@@ -325,6 +332,34 @@ export const TopBar: React.FC = () => {
               title={language === 'tr' ? 'İleri Al (Ctrl+Y)' : 'Redo (Ctrl+Y)'}
             >
               <Redo className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800/80 mx-0.5" />
+
+            {/* View Mode Toggle: Seq Diagram / Free Style */}
+            <button
+              onClick={toggleViewMode}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-lg text-xs cursor-pointer font-semibold transition-all ${
+                viewMode === 'sequence'
+                  ? 'bg-violet-600/10 hover:bg-violet-600/20 text-violet-600 dark:text-violet-400 border-violet-500/20'
+                  : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-350 border-slate-200 dark:border-slate-850'
+              }`}
+              title={viewMode === 'freeform' 
+                ? (language === 'tr' ? 'Sequence Diagram Görünümü' : 'Sequence Diagram View')
+                : (language === 'tr' ? 'Serbest Stil Görünümü' : 'Free Style View')
+              }
+            >
+              {viewMode === 'freeform' ? (
+                <>
+                  <ListOrdered className="w-3.5 h-3.5 text-violet-500" />
+                  <span>{language === 'tr' ? 'Seq Diagram' : 'Seq Diagram'}</span>
+                </>
+              ) : (
+                <>
+                  <LayoutDashboard className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>{language === 'tr' ? 'Serbest Stil' : 'Free Style'}</span>
+                </>
+              )}
             </button>
 
             <div className="h-4 w-px bg-slate-200 dark:bg-slate-800/80 mx-0.5" />
