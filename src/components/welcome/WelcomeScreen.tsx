@@ -41,7 +41,7 @@ export const WelcomeScreen: React.FC = () => {
       setLoading(true);
       await exportWorkspace(ws, language);
     } catch (err: any) {
-      setError(language === 'tr' ? `Dışa aktarım başarısız: ${err}` : `Export failed: ${err}`);
+      setError(t.exportFailedMsg + err);
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export const WelcomeScreen: React.FC = () => {
         const selected = await open({
           multiple: false,
           filters: [{ name: 'YADA Project', extensions: ['dproj'] }],
-          title: language === 'tr' ? 'Proje Dosyası Seç' : 'Select Project File',
+          title: t.selectProjectFile,
         });
         if (!selected || typeof selected !== 'string') return;
         setLoading(true);
@@ -127,7 +127,7 @@ export const WelcomeScreen: React.FC = () => {
       await deleteWorkspace(workspaceToDelete.path);
       setWorkspaceToDelete(null);
     } catch (err: any) {
-      setError(language === 'tr' ? `Silme başarısız: ${err}` : `Deletion failed: ${err}`);
+      setError(t.deletionFailed + err);
     } finally {
       setLoading(false);
     }
@@ -148,7 +148,7 @@ export const WelcomeScreen: React.FC = () => {
       setWorkspaceToRename(null);
       setRenameName('');
     } catch (err: any) {
-      setError(language === 'tr' ? `Yeniden adlandırma başarısız: ${err}` : `Rename failed: ${err}`);
+      setError(t.renameFailed + err);
     } finally {
       setLoading(false);
     }
@@ -235,11 +235,10 @@ export const WelcomeScreen: React.FC = () => {
         <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-6">
-              <img src="pwa-icon.png" className={"h-12"} />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-400 dark:from-indigo-200 dark:via-indigo-100 dark:to-slate-200 bg-clip-text text-transparent">
+              <img src="pwa-icon.png" className={"h-12"} alt="YADA Icon" />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-650 to-indigo-500 dark:from-indigo-200 dark:via-indigo-100 dark:to-slate-200 bg-clip-text text-transparent">
                 {t.welcomeTitle}
               </h1>
-
             </div>
 
             <div className="flex items-center justify-between mb-4">
@@ -251,10 +250,10 @@ export const WelcomeScreen: React.FC = () => {
                 <button
                   onClick={handleImport}
                   disabled={loading}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors duration-200 hover:underline font-semibold"
+                  className="text-xs text-indigo-650 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors duration-200 hover:underline font-semibold"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  {language === 'tr' ? 'İçeri Aktar (.dproj)' : 'Import (.dproj)'}
+                  {t.importDproj}
                 </button>
               </div>
             </div>
@@ -289,7 +288,7 @@ export const WelcomeScreen: React.FC = () => {
 
                     <div className="flex items-center gap-3">
                       <div className="text-right text-[10px] text-slate-550 hidden sm:block">
-                        <div className="font-medium">{language === 'tr' ? 'Son erişim' : 'Last access'}</div>
+                        <div className="font-medium">{t.lastAccess}</div>
                         <div className="mt-0.5 text-slate-400 dark:text-slate-500">{formatDate(ws.lastAccessed)}</div>
                       </div>
 
@@ -299,23 +298,23 @@ export const WelcomeScreen: React.FC = () => {
                             setWorkspaceToRename(ws);
                             setRenameName(ws.name);
                           }}
-                          title={language === 'tr' ? 'Yeniden Adlandır' : 'Rename'}
+                          title={t.rename}
                           disabled={loading}
-                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleExport(ws)}
-                          title={language === 'tr' ? 'Dışa Aktar (.dproj)' : 'Export (.dproj)'}
+                          title={t.exportDproj}
                           disabled={loading}
-                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setWorkspaceToDelete(ws)}
-                          title={language === 'tr' ? 'Sil' : 'Delete'}
+                          title={t.delete}
                           disabled={loading}
                           className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/45 text-slate-555 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer"
                         >
@@ -357,7 +356,7 @@ export const WelcomeScreen: React.FC = () => {
                   }}
                   disabled={loading}
                   placeholder={t.workspaceNamePlaceholder}
-                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm placeholder-slate-400 dark:placeholder-slate-650 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200"
+                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200"
                   maxLength={50}
                 />
               </div>
@@ -372,7 +371,7 @@ export const WelcomeScreen: React.FC = () => {
                   disabled={loading}
                   placeholder={t.descriptionPlaceholder}
                   rows={4}
-                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm placeholder-slate-400 dark:placeholder-slate-650 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200 resize-none"
+                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200 resize-none"
                   maxLength={200}
                 />
               </div>
@@ -387,7 +386,7 @@ export const WelcomeScreen: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/45 text-slate-100 font-bold rounded-xl text-sm transition-all duration-200 shadow-lg shadow-indigo-600/10 dark:shadow-indigo-600/20 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                className="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/45 text-slate-100 font-bold rounded-xl text-sm transition-all duration-200 shadow-lg shadow-indigo-650/10 dark:shadow-indigo-650/20 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <div className="w-4 h-4 border-2 border-indigo-200 border-t-transparent rounded-full animate-spin" />
@@ -400,16 +399,14 @@ export const WelcomeScreen: React.FC = () => {
               </button>
             </form>
           </div>
-
-
         </div>
 
       </div>
 
       {/* Global Preferences Modal */}
       {showPrefModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all animate-in zoom-in-95 duration-200">
 
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -429,7 +426,7 @@ export const WelcomeScreen: React.FC = () => {
                   <button
                     onClick={() => changeLanguage('tr')}
                     className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${language === 'tr'
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-650/25'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                       }`}
                   >
@@ -439,7 +436,7 @@ export const WelcomeScreen: React.FC = () => {
                   <button
                     onClick={() => changeLanguage('en')}
                     className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${language === 'en'
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-650/25'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                       }`}
                   >
@@ -452,30 +449,31 @@ export const WelcomeScreen: React.FC = () => {
               {/* Theme Selection */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  {theme === 'dark' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+                  {theme === 'light' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                   {t.theme}
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => changeTheme('dark')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${theme === 'dark'
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
-                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                <div className="flex flex-col gap-1.5">
+                  {([
+                    { key: 'light', label: t.themeLight, Icon: Sun },
+                    { key: 'dark', label: t.themeDark, Icon: Moon },
+                    { key: 'nord', label: t.themeNord, Icon: Moon },
+                    { key: 'dracula', label: t.themeDracula, Icon: Moon },
+                    { key: 'synthwave', label: t.themeSynthwave, Icon: Moon },
+                  ] as const).map(({ key, label: themeLabel, Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => changeTheme(key)}
+                      className={`py-2 px-3.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center gap-2 ${
+                        theme === key
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-650/25'
+                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                       }`}
-                  >
-                    <Moon className="w-3.5 h-3.5" />
-                    <span>{t.themeDark}</span>
-                  </button>
-                  <button
-                    onClick={() => changeTheme('light')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${theme === 'light'
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/25'
-                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                  >
-                    <Sun className="w-3.5 h-3.5" />
-                    <span>{t.themeLight}</span>
-                  </button>
+                    >
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <span className="flex-1 text-left">{themeLabel}</span>
+                      {theme === key && <Check className="w-3.5 h-3.5 shrink-0" />}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -495,16 +493,14 @@ export const WelcomeScreen: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {workspaceToDelete && (
-        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all">
+        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all animate-in zoom-in-95 duration-200">
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-500" />
-              {language === 'tr' ? 'Çalışma Alanını Sil' : 'Delete Workspace'}
+              {t.deleteWorkspace}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-              {language === 'tr'
-                ? `"${workspaceToDelete.name}" isimli çalışma alanını silmek istediğinize emin misiniz? Bu işlem dosyaları diskten kalıcı olarak silecektir ve geri alınamaz.`
-                : `Are you sure you want to delete the workspace "${workspaceToDelete.name}"? This will permanently delete the files from disk and cannot be undone.`}
+              {"\"" + workspaceToDelete.name + "\" " + t.deleteWorkspaceConfirm}
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -519,7 +515,7 @@ export const WelcomeScreen: React.FC = () => {
                 onClick={confirmDelete}
                 className="px-4 py-2 bg-red-600 hover:bg-red-500 text-slate-100 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
               >
-                {language === 'tr' ? 'Kalıcı Olarak Sil' : 'Delete Permanently'}
+                {t.deletePermanently}
               </button>
             </div>
           </div>
@@ -528,16 +524,16 @@ export const WelcomeScreen: React.FC = () => {
 
       {/* Rename Workspace Modal */}
       {workspaceToRename && (
-        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all">
+        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all animate-in zoom-in-95 duration-200">
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
               <Edit className="w-5 h-5 text-indigo-500" />
-              {language === 'tr' ? 'Çalışma Alanını Yeniden Adlandır' : 'Rename Workspace'}
+              {t.renameWorkspace}
             </h3>
             <form onSubmit={handleRenameWorkspace} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  {language === 'tr' ? 'Yeni İsim' : 'New Name'}
+                  {t.newName}
                 </label>
                 <input
                   type="text"
@@ -565,7 +561,7 @@ export const WelcomeScreen: React.FC = () => {
                   disabled={loading || !renameName.trim()}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-100 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
                 >
-                  {language === 'tr' ? 'Kaydet' : 'Save'}
+                  {t.save}
                 </button>
               </div>
             </form>
@@ -575,16 +571,14 @@ export const WelcomeScreen: React.FC = () => {
 
       {/* Import Conflict Resolution Modal */}
       {importConflicts.length > 0 && conflictResolver && (
-        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl transition-all">
+        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl transition-all animate-in zoom-in-95 duration-200">
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-amber-500 animate-pulse" />
-              {language === 'tr' ? 'Özel Bileşen Çakışması Algılandı' : 'Custom Component Conflict'}
+              {t.conflictTitle}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-              {language === 'tr'
-                ? 'İçeri aktarılan projede yer alan aşağıdaki özel bileşenler şablon kütüphanenizde zaten mevcut. Nasıl devam etmek istersiniz?'
-                : 'The following custom components in the imported project already exist in your component library. How would you like to proceed?'}
+              {t.conflictSub}
             </p>
 
             <div className="bg-slate-50 dark:bg-slate-950/50 rounded-xl p-3 max-h-40 overflow-y-auto mb-4 border border-slate-200 dark:border-slate-850">
@@ -605,9 +599,9 @@ export const WelcomeScreen: React.FC = () => {
                   setImportConflicts([]);
                   setConflictResolver(null);
                 }}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs cursor-pointer transition-colors"
+                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs cursor-pointer transition-colors"
               >
-                {language === 'tr' ? 'Mevcut Olanların Üzerine Yaz (Önerilen)' : 'Overwrite Existing (Recommended)'}
+                {t.conflictOverwrite}
               </button>
               <button
                 type="button"
@@ -620,12 +614,12 @@ export const WelcomeScreen: React.FC = () => {
                 }}
                 className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
               >
-                {language === 'tr' ? 'İkisini de Koru (Yeni kopya olarak kaydet)' : 'Keep Both (Save as new copies)'}
+                {t.conflictKeepBoth}
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  conflictResolver.reject(new Error(language === 'tr' ? 'İçe aktarma iptal edildi.' : 'Import cancelled.'));
+                  conflictResolver.reject(new Error(t.importCancelled));
                   setImportConflicts([]);
                   setConflictResolver(null);
                 }}

@@ -69,7 +69,7 @@ export const TopBar: React.FC = () => {
       const defaultName = `${currentWorkspace?.name || 'diagram'}_simulation.html`;
       
       const htmlContent = viewMode === 'sequence'
-        ? generateSequenceHtml(logicalData, useAppStore.getState().schedules, visualData.timelines, theme)
+        ? generateSequenceHtml(logicalData, useAppStore.getState().schedules, visualData.timelines, theme === 'light' ? 'light' : 'dark')
         : generateStandaloneHtml(logicalData, visualData, libraryComponents);
 
       if (isTauri()) {

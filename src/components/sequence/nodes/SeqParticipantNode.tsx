@@ -215,7 +215,7 @@ export const SeqParticipantNode = memo(function SeqParticipantNode({
 
   const themeName = useAppStore((s) => s.theme);
   const bgColor = useAppStore((s) => s.visualData.canvas.bgColor);
-  const isBgDark = bgColor ? isColorDark(bgColor) : (themeName === 'dark');
+  const isBgDark = bgColor ? isColorDark(bgColor) : (themeName !== 'light');
   const defaultLifelineColor = isBgDark ? 'rgba(203, 213, 225, 0.8)' : 'rgba(71, 85, 105, 0.8)';
 
   // Registry definition

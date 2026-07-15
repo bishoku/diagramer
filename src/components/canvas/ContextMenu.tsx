@@ -1,5 +1,6 @@
 import { Trash2, X, Info, Clock, Copy } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { translations } from '../../i18n/translations';
 
 interface ContextMenuProps {
   menu: {
@@ -16,11 +17,12 @@ interface ContextMenuProps {
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelete, onClone }) => {
   const logicalData = useAppStore((state) => state.logicalData);
-  const theme = useAppStore((state) => state.theme);
   const language = useAppStore((state) => state.language);
   const maxSteps = useAppStore((state) => state.maxSteps);
   const setSequenceStepOrder = useAppStore((state) => state.setSequenceStepOrder);
   const addSequenceStep = useAppStore((state) => state.addSequenceStep);
+
+  const t = translations[language];
 
   if (!menu) return null;
 
@@ -51,8 +53,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelet
                   idx === arr.length - 1 ? 'border-b border-slate-200/40 dark:border-slate-800/40 mb-1' : ''
                 }`}
               >
-                <span className="text-[11px] font-semibold text-slate-550 dark:text-slate-400">
-                  {theme === 'dark' ? 'Adım Sırası:' : 'Step Order:'}
+                <span className="text-[11px] font-semibold text-slate-555 dark:text-slate-400">
+                  {t.stepOrder}:
                 </span>
                 <select
                   value={seq.stepNumber}
@@ -86,7 +88,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelet
               className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 border-b border-slate-200/40 dark:border-slate-800/40 rounded-xl transition-all duration-200 w-full text-left cursor-pointer"
             >
               <Clock className="w-4 h-4 text-indigo-500" />
-              <span>{theme === 'dark' ? 'Akışa Ekle' : 'Add to Sequence'}</span>
+              <span>{t.addToSequence}</span>
             </button>
           )}
         </>
@@ -99,7 +101,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelet
           className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 w-full text-left cursor-pointer"
         >
           <Copy className="w-4 h-4 text-indigo-500" />
-          <span>{language === 'tr' ? 'Klonla' : 'Clone'}</span>
+          <span>{t.clone}</span>
         </button>
       )}
 
@@ -109,7 +111,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelet
         className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 active:bg-rose-100 dark:active:bg-rose-500/20 rounded-xl transition-all duration-200 w-full text-left cursor-pointer"
       >
         <Trash2 className="w-4 h-4" />
-        <span>{theme === 'dark' ? 'Sil' : 'Delete'}</span>
+        <span>{t.delete}</span>
       </button>
 
       {/* Close Action */}
@@ -118,7 +120,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ menu, onClose, onDelet
         className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/60 rounded-xl transition-all duration-200 w-full text-left cursor-pointer"
       >
         <X className="w-4 h-4" />
-        <span>{theme === 'dark' ? 'Kapat' : 'Cancel'}</span>
+        <span>{t.cancel}</span>
       </button>
     </div>
   );

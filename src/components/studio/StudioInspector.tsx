@@ -1,9 +1,10 @@
 import React from 'react';
 import { Move, ArrowUp, ArrowDown, Trash2, Image as ImageIcon } from 'lucide-react';
 import { ShapeLayer } from '../../types';
+import { useAppStore } from '../../store/useAppStore';
+import { translations } from '../../i18n/translations';
 
 interface StudioInspectorProps {
-  theme: string;
   layers: ShapeLayer[];
   selectedLayerId: string | null;
   draggedId: string | null;
@@ -20,7 +21,6 @@ interface StudioInspectorProps {
 }
 
 export const StudioInspector: React.FC<StudioInspectorProps> = ({
-  theme,
   layers,
   selectedLayerId,
   draggedId,
@@ -35,6 +35,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
   onImageUpload,
   totalLayersCount,
 }) => {
+  const language = useAppStore((state) => state.language);
+  const t = translations[language];
   const selectedLayer = layers.find((l) => l.id === selectedLayerId);
   const layersListDescending = [...layers].sort((a, b) => b.zIndex - a.zIndex);
 
@@ -43,13 +45,13 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
       {/* Top Half: Layers Panel */}
       <div className="flex-1 flex flex-col border-b border-slate-200 dark:border-slate-800 p-4 min-h-[220px] overflow-hidden">
         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 shrink-0">
-          {theme === 'dark' ? 'KATMANLAR' : 'LAYERS LIST'}
+          {t.layersListTitle}
         </span>
 
         <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5">
           {layersListDescending.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-4 text-slate-400 italic text-[11px] text-center">
-              {theme === 'dark' ? 'Henüz şekil eklenmedi.' : 'No layers added yet.'}
+              {t.noLayers}
             </div>
           ) : (
             layersListDescending.map((layer) => {
@@ -124,19 +126,19 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
       {/* Bottom Half: Property Inspector */}
       <div className="flex-1 flex flex-col p-4 overflow-y-auto">
         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">
-          {theme === 'dark' ? 'ÖZELLİKLER' : 'ATTRIBUTES INSPECTOR'}
+          {t.attributesInspectorTitle}
         </span>
 
         {!selectedLayer ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4 text-slate-400 italic text-[11px] text-center">
-            {theme === 'dark' ? 'Özellikleri düzenlemek için bir katman seçin.' : 'Select a shape layer to view attributes.'}
+            {t.selectLayerPrompt}
           </div>
         ) : (
           <div className="flex flex-col gap-3.5">
             {/* Layer Rename */}
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {theme === 'dark' ? 'Katman İsmi' : 'Layer Title'}
+                {t.layerTitle}
               </label>
               <input
                 type="text"
@@ -150,7 +152,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  X (Koordinat)
+                  X ({language === 'tr' ? 'Koordinat' : 'Coord'})
                 </label>
                 <input
                   type="number"
@@ -162,7 +164,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  Y (Koordinat)
+                  Y ({language === 'tr' ? 'Koordinat' : 'Coord'})
                 </label>
                 <input
                   type="number"
@@ -174,7 +176,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Genişlik (W)' : 'Width (W)'}
+                  {t.widthW}
                 </label>
                 <input
                   type="number"
@@ -186,7 +188,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Yükseklik (H)' : 'Height (H)'}
+                  {t.heightH}
                 </label>
                 <input
                   type="number"
@@ -198,7 +200,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
               <div className="flex flex-col gap-1 col-span-2">
                 <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Döndürme (Derece)' : 'Rotation (Deg)'}
+                  {t.rotationDeg}
                 </label>
                 <input
                   type="number"
@@ -213,8 +215,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
             {/* Opacity slider */}
             <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                <span>{theme === 'dark' ? 'Opaklık (Şeffaflık)' : 'Opacity'}</span>
+              <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wider">
+                <span>{t.opacity}</span>
                 <span>{Math.round((selectedLayer.style.opacity ?? 1) * 100)}%</span>
               </div>
               <input
@@ -234,7 +236,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
             {selectedLayer.type === 'text' && (
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Yazı Metni' : 'Text Value'}
+                  {t.textValue}
                 </label>
                 <input
                   type="text"
@@ -248,12 +250,12 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
             {selectedLayer.type === 'image' && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Görsel Seç' : 'Choose Image Asset'}
+                  {t.chooseImageAsset}
                 </label>
                 <div className="relative border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-950 flex flex-col items-center justify-center gap-1.5 cursor-pointer">
                   <ImageIcon className="w-5 h-5 text-slate-400" />
-                  <span className="text-[10px] font-semibold text-indigo-550 dark:text-indigo-400">
-                    {selectedLayer.content ? (theme === 'dark' ? 'Resmi Değiştir' : 'Change Image') : (theme === 'dark' ? 'Dosya Yükle' : 'Upload Image')}
+                  <span className="text-[10px] font-semibold text-indigo-555 dark:text-indigo-400">
+                    {selectedLayer.content ? t.changeImage : t.uploadImage}
                   </span>
                   <input
                     type="file"
@@ -270,7 +272,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <div className="flex flex-col gap-1">
                   <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Dolgu Rengi' : 'Fill Color'}
+                    {t.fillColor}
                   </label>
                   <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-0.5">
                     <input
@@ -289,7 +291,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Çizgi Rengi' : 'Stroke Color'}
+                    {t.strokeColor}
                   </label>
                   <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-0.5">
                     <input
@@ -313,7 +315,7 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Çizgi Kalınlığı' : 'Stroke Width'}
+                    {t.strokeWidth}
                   </label>
                   <input
                     type="number"
@@ -328,8 +330,8 @@ export const StudioInspector: React.FC<StudioInspectorProps> = ({
 
                 {selectedLayer.type === 'rectangle' && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      {theme === 'dark' ? 'Köşe Radyusu' : 'Corner Radius'}
+                    <label className="text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wider">
+                      {t.cornerRadius}
                     </label>
                     <input
                       type="number"

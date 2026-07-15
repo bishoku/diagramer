@@ -14,7 +14,7 @@ export const SeqFragmentNode = memo(function SeqFragmentNode({
   data,
 }: NodeProps) {
   const theme = useAppStore((s) => s.theme);
-  const isDark = theme === 'dark';
+  const isDark = theme !== 'light';
   const { name, fragmentWidth, fragmentHeight } =
     data as unknown as SeqFragmentData;
 

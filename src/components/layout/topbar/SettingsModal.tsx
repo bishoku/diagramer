@@ -115,34 +115,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs mt-2">
+            <div className="flex flex-col gap-2 mt-2">
               <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                {theme === 'dark' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+                {theme === 'light' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                 {t.theme}:
               </span>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => changeTheme('dark')}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${
-                    theme === 'dark'
-                      ? 'bg-indigo-600 border-indigo-600 text-white'
-                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  {t.themeDark}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => changeTheme('light')}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${
-                    theme === 'light'
-                      ? 'bg-indigo-600 border-indigo-600 text-white'
-                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  {t.themeLight}
-                </button>
+              <div className="grid grid-cols-2 gap-1.5">
+                {([
+                  { key: 'light', label: t.themeLight },
+                  { key: 'dark', label: t.themeDark },
+                  { key: 'nord', label: t.themeNord },
+                  { key: 'dracula', label: t.themeDracula },
+                  { key: 'synthwave', label: t.themeSynthwave }
+                ] as const).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => changeTheme(key)}
+                    className={`px-2 py-1.5 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${
+                      theme === key
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 

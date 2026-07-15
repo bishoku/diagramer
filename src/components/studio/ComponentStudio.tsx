@@ -5,11 +5,13 @@ import { StudioHeader } from './StudioHeader';
 import { StudioSidebar } from './StudioSidebar';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioInspector } from './StudioInspector';
+import { translations, Language } from '../../i18n/translations';
 
 export const ComponentStudio: React.FC = () => {
   const activeComponent = useAppStore((s: any) => s.activeComponent);
   const selectedLayerId = useAppStore((s: any) => s.selectedLayerId);
-  const theme = useAppStore((s: any) => s.theme);
+  const language = useAppStore((s: any) => s.language) as Language;
+  const t = translations[language];
   
   const setView = useAppStore((s: any) => s.setView);
   const setActiveComponent = useAppStore((s: any) => s.setActiveComponent);
@@ -219,7 +221,7 @@ export const ComponentStudio: React.FC = () => {
   // Save changes to library
   const handleSave = async () => {
     if (!activeComponent.name.trim()) {
-      setError(theme === 'dark' ? 'Lütfen bileşene bir isim verin.' : 'Please enter a component name.');
+      setError(t.enterComponentNameError);
       return;
     }
     setError(null);
@@ -246,7 +248,6 @@ export const ComponentStudio: React.FC = () => {
         width={activeComponent.dimensions.width}
         height={activeComponent.dimensions.height}
         error={error}
-        theme={theme}
         onBack={() => {
           setActiveComponent(null);
           setView('diagram');
@@ -273,7 +274,7 @@ export const ComponentStudio: React.FC = () => {
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <StudioSidebar theme={theme} onAddShape={handleAddShape} />
+        <StudioSidebar onAddShape={handleAddShape} />
         
         <StudioCanvas
           width={activeComponent.dimensions.width}
@@ -286,7 +287,6 @@ export const ComponentStudio: React.FC = () => {
         />
 
         <StudioInspector
-          theme={theme}
           layers={activeComponent.layers}
           selectedLayerId={selectedLayerId}
           draggedId={draggedId}

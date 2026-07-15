@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, X, Save } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { translations } from '../../i18n/translations';
 
 interface ConnectionConfirmModalProps {
   pendingConnection: any;
@@ -22,7 +23,8 @@ export const ConnectionConfirmModal: React.FC<ConnectionConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  const theme = useAppStore((state) => state.theme);
+  const language = useAppStore((state) => state.language);
+  const t = translations[language];
 
   if (!pendingConnection) return null;
 
@@ -32,7 +34,7 @@ export const ConnectionConfirmModal: React.FC<ConnectionConfirmModalProps> = ({
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Clock className="w-4 h-4 text-indigo-500" />
-            {theme === 'dark' ? 'Adım Sırası Belirle' : 'Set Step Order'}
+            {t.setStepOrder}
           </span>
           <button 
             onClick={onCancel}
@@ -42,8 +44,8 @@ export const ConnectionConfirmModal: React.FC<ConnectionConfirmModalProps> = ({
           </button>
         </div>
 
-        <div className="text-xs text-slate-500 dark:text-slate-455 leading-relaxed font-sans">
-          {theme === 'dark' ? (
+        <div className="text-xs text-slate-550 dark:text-slate-455 leading-relaxed font-sans">
+          {language === 'tr' ? (
             <>
               <span className="font-bold text-slate-700 dark:text-slate-200">{connectionSrcName}</span> bileşeninden{" "}
               <span className="font-bold text-slate-700 dark:text-slate-200">{connectionDstName}</span> bileşenine çizdiğiniz bağlantının çalıştırılma sırasını girin.
@@ -59,7 +61,7 @@ export const ConnectionConfirmModal: React.FC<ConnectionConfirmModalProps> = ({
 
         <div className="flex flex-col gap-1.5 font-sans">
           <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-            {theme === 'dark' ? 'Adım Numarası (Sıra)' : 'Step Number (Order)'}
+            {t.stepNumberOrder}
           </label>
           <input
             type="number"
@@ -76,14 +78,14 @@ export const ConnectionConfirmModal: React.FC<ConnectionConfirmModalProps> = ({
             onClick={onCancel}
             className="px-4 py-2 rounded-2xl text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
-            {theme === 'dark' ? 'İptal' : 'Cancel'}
+            {t.cancel}
           </button>
           <button
             onClick={onConfirm}
             className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>{theme === 'dark' ? 'Kaydet' : 'Save'}</span>
+            <span>{t.save}</span>
           </button>
         </div>
       </div>

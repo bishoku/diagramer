@@ -3,6 +3,7 @@ import { Settings, X, Save, Plus, Trash2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { HandleConfig, PortSide } from '../../types';
 import { resolveHandles, MAX_HANDLES_PER_SIDE, MAX_HANDLES_PER_NODE } from '../../utils/portUtils';
+import { translations, Language } from '../../i18n/translations';
 
 interface PropertiesPanelProps {
   activeNode: {
@@ -48,9 +49,9 @@ interface PropertiesPanelProps {
   onCancelEdge?: () => void;
 }
 
-const SIDE_LABELS: Record<string, Record<PortSide, string>> = {
-  dark: { top: 'Üst', right: 'Sağ', bottom: 'Alt', left: 'Sol' },
-  light: { top: 'Top', right: 'Right', bottom: 'Bottom', left: 'Left' },
+const SIDE_LABELS: Record<Language, Record<PortSide, string>> = {
+  tr: { top: 'Üst', right: 'Sağ', bottom: 'Alt', left: 'Sol' },
+  en: { top: 'Top', right: 'Right', bottom: 'Bottom', left: 'Left' },
 };
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
@@ -62,7 +63,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onApplyEdge,
   onCancelEdge,
 }) => {
-  const theme = useAppStore((state) => state.theme);
+  const language = useAppStore((state) => state.language);
+  const t = translations[language];
   const logicalData = useAppStore((state) => state.logicalData);
   const maxSteps = useAppStore((state) => state.maxSteps);
 
@@ -189,7 +191,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   const sides: PortSide[] = ['top', 'right', 'bottom', 'left'];
-  const labels = theme === 'dark' ? SIDE_LABELS.dark : SIDE_LABELS.light;
+  const labels = SIDE_LABELS[language] || SIDE_LABELS.en;
 
   const handleApplyNodeLocal = () => {
     if (!activeNode) return;
@@ -226,7 +228,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
           <span className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Settings className="w-4 h-4 text-indigo-500" />
-            {activeNode ? (theme === 'dark' ? 'Bileşen Özellikleri' : 'Component Properties') : (theme === 'dark' ? 'Bağlantı Özellikleri' : 'Edge Properties')}
+            {activeNode ? t.propertiesTitle : t.edgePropertiesTitle}
           </span>
           <button 
             onClick={activeNode ? onCloseNode : (activeEdge?.isNew ? onCancelEdge : onCloseEdge)}
@@ -244,7 +246,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Bileşen Adı' : 'Name'}
+                  {t.nodeName}
                 </label>
                 <input
                   type="text"
@@ -257,28 +259,28 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               {activeNode.type !== 'section' && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Bileşen Tipi' : 'Type'}
+                    {t.nodeType}
                   </label>
                   <select
                     value={nodeType}
                     onChange={(e) => setNodeType(e.target.value)}
                     className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
                   >
-                    <option value="client">{theme === 'dark' ? 'İstemci (Client)' : 'Client'}</option>
-                    <option value="load_balancer">{theme === 'dark' ? 'Yük Dengeleyici (LB)' : 'Load Balancer'}</option>
+                    <option value="client">{t.client}</option>
+                    <option value="load_balancer">{t.loadBalancer}</option>
                     <option value="gateway">API Gateway</option>
-                    <option value="firewall">{theme === 'dark' ? 'Güvenlik Duvarı' : 'Firewall / WAF'}</option>
-                    <option value="server">{theme === 'dark' ? 'Uygulama Sunucusu' : 'App Server'}</option>
-                    <option value="database">{theme === 'dark' ? 'Veritabanı (SQL)' : 'Database'}</option>
-                    <option value="cache">{theme === 'dark' ? 'Önbellek (Redis)' : 'Cache Store'}</option>
-                    <option value="queue">{theme === 'dark' ? 'Mesaj Kuyruğu' : 'Message Queue'}</option>
+                    <option value="firewall">{t.firewall}</option>
+                    <option value="server">{t.appServer}</option>
+                    <option value="database">{t.database}</option>
+                    <option value="cache">{t.cache}</option>
+                    <option value="queue">{t.queue}</option>
                   </select>
                 </div>
               )}
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
-                  {theme === 'dark' ? 'Tema Rengi' : 'Theme Color'}
+                  {t.themeColor}
                 </label>
                 <div className="flex gap-2.5">
                   {['indigo', 'emerald', 'rose', 'amber', 'violet', 'cyan'].map((color) => (
@@ -296,27 +298,27 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
               <div className="flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
-                  {theme === 'dark' ? 'Görünüm Modu' : 'Display Mode'}
+                  {t.displayMode}
                 </label>
                 <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
                   <button
                     onClick={() => setDisplayMode('default')}
-                    className={`flex-1 py-1 text-xs rounded-lg font-semibold transition-colors ${displayMode === 'default' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`flex-1 py-1 text-xs rounded-lg font-semibold transition-colors ${displayMode === 'default' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-650 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                   >
-                    {theme === 'dark' ? 'Standart' : 'Default'}
+                    {t.default}
                   </button>
                   <button
                     onClick={() => setDisplayMode('icon-only')}
-                    className={`flex-1 py-1 text-xs rounded-lg font-semibold transition-colors ${displayMode === 'icon-only' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`flex-1 py-1 text-xs rounded-lg font-semibold transition-colors ${displayMode === 'icon-only' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-655 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                   >
-                    {theme === 'dark' ? 'Sadece İkon' : 'Icon Only'}
+                    {t.iconOnly}
                   </button>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Yönelim' : 'Orientation'}
+                  {t.orientation}
                 </label>
                 <div className="flex p-0.5 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
                   <button
@@ -324,7 +326,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     onClick={() => setRotation(0)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg font-semibold transition-colors ${
                       rotation === 0
-                        ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-650 dark:text-indigo-400'
                         : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                   >
@@ -333,14 +335,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <rect x="1" y="4" width="12" height="6" rx="1.5"/>
                       <line x1="3.5" y1="7" x2="10.5" y2="7"/>
                     </svg>
-                    {theme === 'dark' ? 'Yatay' : 'Horizontal'}
+                    {t.horizontal}
                   </button>
                   <button
                     type="button"
                     onClick={() => setRotation(90)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg font-semibold transition-colors ${
                       rotation === 90
-                        ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-655 dark:text-indigo-400'
                         : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                   >
@@ -349,18 +351,18 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <rect x="4" y="1" width="6" height="12" rx="1.5"/>
                       <line x1="7" y1="3.5" x2="7" y2="10.5"/>
                     </svg>
-                    {theme === 'dark' ? 'Dikey' : 'Vertical'}
+                    {t.vertical}
                   </button>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
-                  {theme === 'dark' ? 'Özel Stil (Gelişmiş)' : 'Custom Styling'}
+                  {t.customStyling}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                    <span className="text-[9px] text-slate-500">Arka Plan Rengi</span>
+                    <span className="text-[9px] text-slate-500">{language === 'tr' ? 'Arka Plan Rengi' : 'Background Color'}</span>
                     <div className="flex items-center gap-2">
                       <input 
                         type="color" 
@@ -371,11 +373,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <button 
                         onClick={() => { const s = {...customStyles}; delete s.backgroundColor; setCustomStyles(s); }}
                         className="text-[9px] text-rose-500 hover:underline"
-                      >Temizle</button>
+                      >{language === 'tr' ? 'Temizle' : 'Clear'}</button>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[9px] text-slate-500">Çizgi Rengi</span>
+                    <span className="text-[9px] text-slate-500">{language === 'tr' ? 'Çizgi Rengi' : 'Border Color'}</span>
                     <div className="flex items-center gap-2">
                       <input 
                         type="color" 
@@ -386,7 +388,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <button 
                         onClick={() => { const s = {...customStyles}; delete s.borderColor; setCustomStyles(s); }}
                         className="text-[9px] text-rose-500 hover:underline"
-                      >Temizle</button>
+                      >{language === 'tr' ? 'Temizle' : 'Clear'}</button>
                     </div>
                   </div>
                 </div>
@@ -395,7 +397,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <div className="flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Bağlantı Noktaları' : 'Connection Points'}
+                    {t.connectionPoints}
                   </label>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                     {nodeHandles.length}/{MAX_HANDLES_PER_NODE}
@@ -468,7 +470,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                           }`}
                         >
                           <Plus className="w-3 h-3" />
-                          <span>{theme === 'dark' ? 'Ekle' : 'Add'}</span>
+                          <span>{t.add}</span>
                         </button>
                       </div>
                       {sideHandles.map((h) => {
@@ -485,7 +487,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             <button
                               onClick={() => {
                                 if (connectedHandleIds.has(h.id)) {
-                                  if (!confirm(theme === 'dark' ? 'Bağlı edge\'ler var, emin misiniz?' : 'Has connected edges, are you sure?')) return;
+                                  if (!confirm(t.connectedEdgesConfirm)) return;
                                 }
                                 setNodeHandles(nodeHandles.filter(nh => nh.id !== h.id));
                               }}
@@ -508,7 +510,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Protokol' : 'Protocol'}
+                  {t.protocol}
                 </label>
                 <input
                   type="text"
@@ -522,7 +524,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'İşlem Sırası' : 'Step'}
+                    {t.step}
                   </label>
                   <select
                     value={stepNumber}
@@ -537,7 +539,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
                 <div className="flex flex-col gap-1.5 justify-center">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Asenkron Akış' : 'Async Mode'}
+                    {t.asyncMode}
                   </label>
                   <label className="relative inline-flex items-center cursor-pointer mt-1">
                     <input type="checkbox" checked={isAsync} onChange={(e) => setIsAsync(e.target.checked)} className="sr-only peer" />
@@ -548,22 +550,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
               <div className="flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-2">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Simülasyon Modu' : 'Simulation Mode'}
+                  {t.simulationMode}
                 </label>
                 
                 <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
                   <input type="checkbox" checked={formRoundTrip} onChange={(e) => setFormRoundTrip(e.target.checked)} className="accent-indigo-600 rounded cursor-pointer w-4 h-4" />
-                  <span className="font-semibold">{theme === 'dark' ? 'Gidiş-Dönüş (Gecikmeli)' : 'Round-Trip'}</span>
+                  <span className="font-semibold">{t.roundTrip}</span>
                 </label>
 
                 <div className={`flex gap-4 pl-6 transition-opacity duration-150 ${formRoundTrip ? 'opacity-40 pointer-events-none' : ''}`}>
                   <label className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
                     <input type="radio" name="direction" disabled={formRoundTrip} checked={formDirection === 'forward'} onChange={() => setFormDirection('forward')} className="accent-indigo-600 cursor-pointer w-4 h-4" />
-                    <span>{theme === 'dark' ? 'İleri (A ➔ B)' : 'Forward (A ➔ B)'}</span>
+                    <span>{t.forwardDirection}</span>
                   </label>
                   <label className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
                     <input type="radio" name="direction" disabled={formRoundTrip} checked={formDirection === 'reverse'} onChange={() => setFormDirection('reverse')} className="accent-indigo-600 cursor-pointer w-4 h-4" />
-                    <span>{theme === 'dark' ? 'Geri (B ➔ A)' : 'Reverse (B ➔ A)'}</span>
+                    <span>{t.reverseDirection}</span>
                   </label>
                 </div>
               </div>
@@ -571,13 +573,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <div className="grid grid-cols-2 gap-3 mt-2 border-t border-slate-100 dark:border-slate-800/80 pt-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Süre (ms)' : 'Duration (ms)'}
+                    {t.durationMs}
                   </label>
                   <input type="number" min="50" value={duration} onChange={(e) => setDuration(Math.max(50, Number(e.target.value)))} className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Gecikme (ms)' : 'Delay (ms)'}
+                    {t.delayMs}
                   </label>
                   <input type="number" min="0" value={delay} onChange={(e) => setDelay(Math.max(0, Number(e.target.value)))} className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
                 </div>
@@ -585,7 +587,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
               <div className="flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-2">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Tooltip (Bileşen İçi)' : 'Internal Process Tooltip'}
+                  {t.internalProcessTooltip}
                 </label>
                 <input type="text" placeholder="örn: Veri İşleniyor..." value={tooltipText} onChange={(e) => setTooltipText(e.target.value)} className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 mb-1" />
                 <input type="number" placeholder="Süre (ms)" min="100" value={tooltipDuration} onChange={(e) => setTooltipDuration(Math.max(100, Number(e.target.value)))} className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
@@ -593,29 +595,29 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
               <div className="flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-2">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Parçacık Tipi' : 'Particle Type'}
+                  {t.particleType}
                 </label>
                 <div className="flex gap-2">
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input type="radio" name="particleType" checked={particleType === 'circle'} onChange={() => setParticleType('circle')} className="accent-indigo-600" />
-                    <span className="text-xs text-slate-700 dark:text-slate-300">Nokta</span>
+                    <span className="text-xs text-slate-700 dark:text-slate-300">{language === 'tr' ? 'Nokta' : 'Dot'}</span>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input type="radio" name="particleType" checked={particleType === 'arrow'} onChange={() => setParticleType('arrow')} className="accent-indigo-600" />
-                    <span className="text-xs text-slate-700 dark:text-slate-300">Ok</span>
+                    <span className="text-xs text-slate-700 dark:text-slate-300">{language === 'tr' ? 'Ok' : 'Arrow'}</span>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input type="radio" name="particleType" checked={particleType === 'envelope'} onChange={() => setParticleType('envelope')} className="accent-indigo-600" />
-                    <span className="text-xs text-slate-700 dark:text-slate-300">Zarf</span>
+                    <span className="text-xs text-slate-700 dark:text-slate-300">{language === 'tr' ? 'Zarf' : 'Envelope'}</span>
                   </label>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-2">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Akış Açıklaması' : 'Flow Description'}
+                  {t.flowDescription}
                 </label>
-                <textarea rows={3} placeholder={theme === 'dark' ? 'Bu adımda gerçekleşen işlem açıklaması...' : 'Step description...'} value={description} onChange={(e) => setDescription(e.target.value)} className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 resize-none" />
+                <textarea rows={3} placeholder={t.flowDescriptionPlaceholder} value={description} onChange={(e) => setDescription(e.target.value)} className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 resize-none" />
               </div>
             </>
           )}
@@ -629,7 +631,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               onClick={onCancelEdge}
               className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
-              {theme === 'dark' ? 'Sil' : 'Discard'}
+              {t.discard}
             </button>
           )}
           <button
@@ -637,7 +639,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 cursor-pointer transition-colors"
           >
             <Save className="w-4 h-4" />
-            <span>{theme === 'dark' ? 'Uygula' : 'Apply'}</span>
+            <span>{t.apply}</span>
           </button>
         </div>
       </div>

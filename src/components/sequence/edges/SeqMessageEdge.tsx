@@ -47,7 +47,7 @@ export const SeqMessageEdge = memo(function SeqMessageEdge({
 
   const themeName    = useAppStore((s) => s.theme);
   const bgColor      = useAppStore((s) => s.visualData.canvas.bgColor);
-  const isDark       = bgColor ? isColorDark(bgColor) : themeName === 'dark';
+  const isDark       = bgColor ? isColorDark(bgColor) : themeName !== 'light';
   const currentTime  = useAppStore((s) => s.currentTime);
   const schedules    = useAppStore((s) => s.schedules);
   const timelines    = useAppStore((s) => s.visualData.timelines);

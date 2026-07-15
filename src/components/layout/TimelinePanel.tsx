@@ -5,6 +5,7 @@ import {
   Play, Pause, Square, Repeat
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { translations } from '../../i18n/translations';
 import { usePlayheadScrub } from '../timeline/usePlayheadScrub';
 import { useTimingBarDrag } from '../timeline/useTimingBarDrag';
 import { TimelineRuler } from '../timeline/TimelineRuler';
@@ -45,7 +46,8 @@ export const TimelinePanel: React.FC = () => {
   const visualData = useAppStore((s) => s.visualData);
   const isPlaying = useAppStore((s) => s.isPlaying);
   const selectedSequenceId = useAppStore((s) => s.selectedSequenceId);
-  const theme = useAppStore((s) => s.theme);
+  const language = useAppStore((s) => s.language);
+  const t = translations[language];
   const timelineOpen = useAppStore((s: any) => s.timelineOpen);
   const schedules = useAppStore((s) => s.schedules);
   const maxSteps = useAppStore((s) => s.maxSteps);
@@ -196,7 +198,7 @@ export const TimelinePanel: React.FC = () => {
           <div className="flex items-center gap-1.5 shrink-0">
             <Clock className="w-4 h-4 text-indigo-500" />
             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-              {theme === 'dark' ? 'Zaman Çizelgesi' : 'Timeline'}
+              {t.timelineTitle}
             </span>
           </div>
 
@@ -208,7 +210,7 @@ export const TimelinePanel: React.FC = () => {
               <button 
                 onClick={pausePlayback}
                 className="p-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
-                title={theme === 'dark' ? 'Duraklat' : 'Pause'}
+                title={t.pauseTooltip}
               >
                 <Pause className="w-3.5 h-3.5 fill-indigo-600 dark:fill-indigo-400" />
               </button>
@@ -217,7 +219,7 @@ export const TimelinePanel: React.FC = () => {
                 onClick={startPlayback}
                 disabled={logicalData.sequences.length === 0}
                 className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors cursor-pointer"
-                title={theme === 'dark' ? 'Oynat' : 'Play'}
+                title={t.playTooltip}
               >
                 <Play className="w-3.5 h-3.5 fill-white" />
               </button>
@@ -226,7 +228,7 @@ export const TimelinePanel: React.FC = () => {
             <button 
               onClick={stopPlayback}
               className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
-              title={theme === 'dark' ? 'Durdur' : 'Stop'}
+              title={t.stopTooltip}
             >
               <Square className="w-3.5 h-3.5 fill-current" />
             </button>
@@ -238,7 +240,7 @@ export const TimelinePanel: React.FC = () => {
                   ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20' 
                   : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-805 text-slate-400'
               }`}
-              title={theme === 'dark' ? 'Dön' : 'Loop Playback'}
+              title={t.loopPlaybackTooltip}
             >
               <Repeat className="w-3.5 h-3.5" />
             </button>
@@ -283,19 +285,17 @@ export const TimelinePanel: React.FC = () => {
             >
               {/* Header Spacer Row */}
               <div className="h-6 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center px-3 text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                {theme === 'dark' ? 'Akış Adımları' : 'Flow Steps'}
+                {t.flowSteps}
               </div>
 
               {sortedSequences.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
                   <Clock className="w-8 h-8 text-slate-350 dark:text-slate-650 stroke-[1.5] mb-2" />
                   <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-450">
-                    {theme === 'dark' ? 'Akış Adımı Yok' : 'No Animation Steps'}
+                    {t.noAnimationSteps}
                   </span>
                   <p className="text-[9px] text-slate-400 dark:text-slate-550 max-w-[200px] mt-1 leading-normal">
-                    {theme === 'dark' 
-                      ? 'Canvas üzerinde bağlantı çizerek otomatik olarak akış oluşturabilirsiniz.' 
-                      : 'Draw connection line on canvas to auto-create step.'}
+                    {t.drawConnectionPrompt}
                   </p>
                 </div>
               ) : (
@@ -491,7 +491,7 @@ export const TimelinePanel: React.FC = () => {
           <div className="w-[380px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                {theme === 'dark' ? 'Bileşen İçi İşlem Ekle' : 'Configure Node Tooltip'}
+                {t.configureNodeTooltip}
               </span>
               <button 
                 onClick={() => setShowTooltipModal(null)}
@@ -504,26 +504,26 @@ export const TimelinePanel: React.FC = () => {
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Tooltip Metni' : 'Tooltip Text'}
+                  {t.tooltipText}
                 </label>
                 <input
                   type="text"
-                  placeholder="örn: Veri Kaydediliyor..."
+                  placeholder={language === 'tr' ? 'örn: Veri Kaydediliyor...' : 'e.g., Saving Data...'}
                   value={tooltipText}
                   onChange={(e) => setTooltipText(e.target.value)}
-                  className="px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:border-indigo-650 text-slate-800 dark:text-slate-200"
+                  className="px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:border-indigo-650 text-slate-800 dark:text-slate-200"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {theme === 'dark' ? 'Ekranda Kalma Süresi (ms)' : 'Display Duration (ms)'}
+                  {t.displayDurationMs}
                 </label>
                 <input
                   type="number"
                   value={tooltipDuration}
                   onChange={(e) => setTooltipDuration(Number(e.target.value))}
-                  className="px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:border-indigo-650 text-slate-800 dark:text-slate-200"
+                  className="px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:border-indigo-650 text-slate-800 dark:text-slate-200"
                 />
               </div>
             </div>
@@ -533,14 +533,14 @@ export const TimelinePanel: React.FC = () => {
                 onClick={() => setShowTooltipModal(null)}
                 className="px-4 py-2 rounded-2xl text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                {theme === 'dark' ? 'İptal' : 'Cancel'}
+                {t.cancel}
               </button>
               <button
                 onClick={handleSaveTooltip}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors cursor-pointer"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>{theme === 'dark' ? 'Kaydet' : 'Save'}</span>
+                <span>{t.save}</span>
               </button>
             </div>
           </div>

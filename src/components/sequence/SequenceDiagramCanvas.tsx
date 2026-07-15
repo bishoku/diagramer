@@ -60,9 +60,8 @@ function SeqFlowWrapper() {
     };
   }, [fitView]);
 
-  const isBgDark = bgColor ? isColorDark(bgColor) : theme === 'dark';
-  const isDark = theme === 'dark';
-  const dotColor = isBgDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(100, 116, 139, 0.25)';
+  const isBgDark = bgColor ? isColorDark(bgColor) : theme !== 'light';
+  const dotColor = isBgDark ? 'rgba(148, 163, 184, 0.25)' : 'rgba(100, 116, 139, 0.25)';
 
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
   const fitViewOptions = useMemo(() => ({ padding: 0.2 }), []);
@@ -72,19 +71,9 @@ function SeqFlowWrapper() {
   if (isEmpty) {
     return (
       <div
+        className="flex items-center justify-center w-full h-full text-slate-400 dark:text-slate-500 font-sans text-sm"
         style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily:
-            'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-          color: isBgDark ? 'rgba(148, 163, 184, 0.7)' : 'rgba(100, 116, 139, 0.7)',
-          fontSize: '14px',
-          background: bgColor || (isDark
-            ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
-            : 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'),
+          background: bgColor || 'transparent',
         }}
       >
         <div style={{ textAlign: 'center' }}>
@@ -117,9 +106,7 @@ function SeqFlowWrapper() {
       style={{
         width: '100%',
         height: '100%',
-        background: bgColor || (isDark
-          ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
-          : 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'),
+        background: bgColor || 'transparent',
       }}
     >
       <ReactFlow
@@ -146,19 +133,7 @@ function SeqFlowWrapper() {
         )}
         <Controls
           showInteractive={false}
-          style={{
-            background: isDark
-              ? 'rgba(30, 41, 59, 0.85)'
-              : 'rgba(255, 255, 255, 0.85)',
-            borderRadius: '10px',
-            border: isDark
-              ? '1px solid rgba(148, 163, 184, 0.15)'
-              : '1px solid rgba(203, 213, 225, 0.5)',
-            backdropFilter: 'blur(12px)',
-            boxShadow: isDark
-              ? '0 4px 16px rgba(0, 0, 0, 0.3)'
-              : '0 4px 16px rgba(0, 0, 0, 0.08)',
-          }}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-md font-sans"
         />
       </ReactFlow>
     </div>

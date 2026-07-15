@@ -22,6 +22,7 @@ import { BaseNode } from './BaseNode';
 import { AnimatedEdge } from './AnimatedEdge';
 import { SectionNode } from './SectionNode';
 import { useAppStore } from '../../store/useAppStore';
+import { translations } from '../../i18n/translations';
 import { Trash2 } from 'lucide-react';
 
 import { ContextMenu } from './ContextMenu';
@@ -68,6 +69,8 @@ const FlowWrapper: React.FC = () => {
   const setSelectedSequenceId = useAppStore((s) => s.setSelectedSequenceId);
   const addSequenceStep = useAppStore((s) => s.addSequenceStep);
   const theme = useAppStore((s) => s.theme);
+  const language = useAppStore((s) => s.language);
+  const t = translations[language];
   const clearCanvas = useAppStore((s) => s.clearCanvas);
   const updateNodeDetails = useAppStore((s) => s.updateNodeDetails);
   const pushToHistory = useAppStore((s) => s.pushToHistory);
@@ -894,10 +897,10 @@ const FlowWrapper: React.FC = () => {
         <button
           onClick={() => setShowClearModal(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 shadow-md transition-all active:scale-95 cursor-pointer font-sans"
-          title={theme === 'dark' ? 'Tüm Tuvali Temizle' : 'Clear Canvas'}
+          title={t.clearCanvasTooltip}
         >
           <Trash2 className="w-3.5 h-3.5" />
-          <span>{theme === 'dark' ? 'Temizle' : 'Clear All'}</span>
+          <span>{t.clearBtn}</span>
         </button>
       </div>
 

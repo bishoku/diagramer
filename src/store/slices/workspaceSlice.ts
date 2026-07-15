@@ -5,10 +5,16 @@ import { StorageService } from '../../services/storage';
 import { migratePortFormat } from '../../utils/portMigration';
 
 const applyTheme = (theme: Theme) => {
-  if (theme === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else {
+  // Remove custom theme classes first
+  document.documentElement.classList.remove('theme-nord', 'theme-dracula', 'theme-synthwave');
+  
+  if (theme === 'light') {
     document.documentElement.classList.remove('dark');
+  } else {
+    document.documentElement.classList.add('dark');
+    if (theme !== 'dark') {
+      document.documentElement.classList.add(`theme-${theme}`);
+    }
   }
 };
 
@@ -215,7 +221,9 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
         finalLang = prefObj.language;
       }
       
-      const finalTheme: Theme = prefObj.theme === 'dark' ? 'dark' : 'light';
+      const finalTheme: Theme = ['dark', 'light', 'nord', 'dracula', 'synthwave'].includes(prefObj.theme)
+        ? prefObj.theme
+        : 'light';
       const finalMaxSteps: number = typeof prefObj.maxSteps === 'number' ? prefObj.maxSteps : 30;
       
       set({ language: finalLang, theme: finalTheme, maxSteps: finalMaxSteps });

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
 @layer base {
@@ -6,6 +8,20 @@
 
 /* Define class-based dark mode variant for Tailwind CSS v4 */
 @custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+  
+  --color-slate-250: #dce3ec;
+  --color-slate-350: #b9c7d8;
+  --color-slate-450: #7d8da4;
+  --color-slate-550: #55647a;
+  --color-slate-555: #505f75;
+  --color-slate-750: #293548;
+  --color-slate-850: #172033;
+  --color-indigo-650: #493fd7;
+}
 
 /* Custom Scrollbar Styles */
 ::-webkit-scrollbar {
@@ -35,7 +51,92 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+/* Custom visual styling overrides for Nord theme */
+.theme-nord {
+  --color-slate-950: #2e3440; /* base background */
+  --color-slate-900: #3b4252; /* secondary container background */
+  --color-slate-800: #434c5e; /* border primary */
+  --color-slate-850: #4c566a; /* border secondary */
+  --color-slate-700: #d8dee9; /* primary text */
+  --color-slate-600: #e5e9f0; /* primary titles */
+  --color-slate-500: #88c0d0; /* accent light */
+  --color-slate-400: #81a1c1; /* accent muted */
+  --color-slate-200: #d8dee9;
+  --color-slate-100: #e5e9f0;
+  --color-slate-50: #2e3440;
+  
+  --color-indigo-600: #81a1c1; /* primary action buttons */
+  --color-indigo-500: #88c0d0; /* action button hover */
+  --color-indigo-400: #88c0d0;
+  
+  color-scheme: dark;
+}
+.theme-nord ::-webkit-scrollbar-thumb {
+  background: #4c566a;
+}
+.theme-nord ::-webkit-scrollbar-thumb:hover {
+  background: #81a1c1;
+}
+
+/* Custom visual styling overrides for Dracula theme */
+.theme-dracula {
+  --color-slate-950: #282a36; /* base background */
+  --color-slate-900: #1e1f29; /* secondary container background */
+  --color-slate-800: #44475a; /* border primary */
+  --color-slate-850: #343746; /* border secondary */
+  --color-slate-700: #f8f8f2; /* primary text */
+  --color-slate-600: #ffffff; /* primary titles */
+  --color-slate-500: #ff79c6; /* accent pink */
+  --color-slate-400: #bd93f9; /* accent purple */
+  --color-slate-200: #f8f8f2;
+  --color-slate-100: #ffffff;
+  --color-slate-50: #282a36;
+  
+  --color-indigo-600: #bd93f9; /* primary action buttons */
+  --color-indigo-500: #ff79c6; /* action button hover */
+  --color-indigo-400: #50fa7b; /* accent green */
+  
+  color-scheme: dark;
+}
+.theme-dracula ::-webkit-scrollbar-thumb {
+  background: #44475a;
+}
+.theme-dracula ::-webkit-scrollbar-thumb:hover {
+  background: #bd93f9;
+}
+
+/* Custom visual styling overrides for Synthwave theme */
+.theme-synthwave {
+  --color-slate-950: #181528; /* base background */
+  --color-slate-900: #241e3a; /* secondary container background */
+  --color-slate-800: #3b2d54; /* border primary */
+  --color-slate-850: #2d1f44; /* border secondary */
+  --color-slate-700: #e2e8f0; /* primary text */
+  --color-slate-600: #ff79c6; /* primary titles (pink) */
+  --color-slate-500: #00f0ff; /* accent cyan */
+  --color-slate-400: #ff79c6; /* accent pink */
+  --color-slate-200: #e2e8f0;
+  --color-slate-100: #ffffff;
+  --color-slate-50: #181528;
+  
+  --color-indigo-600: #ff79c6; /* primary action buttons (pink) */
+  --color-indigo-500: #00f0ff; /* action button hover (cyan) */
+  --color-indigo-400: #00f0ff;
+  
+  color-scheme: dark;
+}
+.theme-synthwave ::-webkit-scrollbar-thumb {
+  background: #3b2d54;
+}
+.theme-synthwave ::-webkit-scrollbar-thumb:hover {
+  background: #ff79c6;
 }
 
 /* Animate coordinates layout updates smoothly, except when dragging */
@@ -63,11 +164,7 @@ html, body, #root {
   pointer-events: auto !important;
 }
 
-/* When ANY connection is in progress: show ALL nodes' idle handles immediately.
-   React Flow adds .connectionindicator to handles when connectable & a connection
-   is being dragged, and .connectingfrom to the source handle's node.
-   We piggyback on the existence of any connectingfrom node in the flow to reveal
-   handles on all other nodes too — using a JS-driven class on the wrapper. */
+/* When ANY connection is in progress: show ALL nodes' idle handles immediately. */
 .react-flow--connecting .react-flow__handle.handle-idle,
 .react-flow__node.connecting-target .react-flow__handle.handle-idle {
   opacity: 1 !important;
