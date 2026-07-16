@@ -146,42 +146,59 @@ export const decompressData = (compressed: string): string | null => {
   return LZString.decompressFromEncodedURIComponent(compressed);
 };
 
-/**
- * Orchestrates the full process: Stringify -> Encrypt (optional) -> Compress
- */
-export const prepareShareData = async (jsonData: any, pin?: string): Promise<string> => {
-  const stringified = JSON.stringify(jsonData);
-  let processedData = stringified;
+// Helpers for URL-safe Base64 conversion
+const toUrlSafeBase64 = (base64: string): string => {
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
 
-  if (pin) {
-    processedData = await encryptData(stringified, pin);
-    // Add a prefix to easily identify if the payload is encrypted
-    processedData = 'ENC:' + processedData;
+const fromUrlSafeBase64 = (safeBase64: string): string => {
+  let base64 = safeBase64.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) {
+    base64 += '=';
   }
-
-  return compressData(processedData);
+  return base64;
 };
 
 /**
- * Orchestrates the full reverse process: Decompress -> Decrypt (optional) -> Parse
+ * Orchestrates the full process: Stringify -> Compress (if encrypting) -> Encrypt (optional) -> Encode to URL-safe format
+ */
+export const prepareShareData = async (jsonData: any, pin?: string): Promise<string> => {
+  const stringified = JSON.stringify(jsonData);
+
+  if (pin) {
+    // Compress first using Base64 (valid ASCII) to prevent TextEncoder UTF-8 corruption during encryption
+    const compressed = LZString.compressToBase64(stringified);
+    const encrypted = await encryptData(compressed, pin);
+    // Convert base64 output of encryption to URL-safe format and prepend ENC:
+    return 'ENC:' + toUrlSafeBase64(encrypted);
+  }
+
+  // If no PIN, compress the stringified JSON normally using LZ-string encoded URI component
+  return compressData(stringified);
+};
+
+/**
+ * Orchestrates the full reverse process: URL decode/Decrypt -> Decompress -> Parse
  */
 export const extractShareData = async (compressedData: string, pin?: string): Promise<any> => {
+  if (compressedData.startsWith('ENC:')) {
+    if (!pin) {
+      throw new Error('PIN_REQUIRED');
+    }
+    const safeEncryptedPayload = compressedData.substring(4);
+    const standardEncryptedBase64 = fromUrlSafeBase64(safeEncryptedPayload);
+    const decryptedCompressed = await decryptData(standardEncryptedBase64, pin);
+    const decompressedJson = LZString.decompressFromBase64(decryptedCompressed);
+    if (!decompressedJson) {
+      throw new Error('Failed to decompress decrypted data');
+    }
+    return JSON.parse(decompressedJson);
+  }
+
+  // Otherwise, it is unencrypted and compressed as a normal URI component
   const decompressed = decompressData(compressedData);
   if (!decompressed) {
     throw new Error('Failed to decompress data');
   }
-
-  let finalDataString = decompressed;
-
-  if (decompressed.startsWith('ENC:')) {
-    if (!pin) {
-      throw new Error('PIN_REQUIRED');
-    }
-    const encryptedPayload = decompressed.substring(4);
-    finalDataString = await decryptData(encryptedPayload, pin);
-  } else if (pin) {
-     throw new Error('Data is not encrypted, but a PIN was provided');
-  }
-
-  return JSON.parse(finalDataString);
+  return JSON.parse(decompressed);
 };

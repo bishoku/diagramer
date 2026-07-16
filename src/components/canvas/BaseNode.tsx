@@ -63,16 +63,16 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
   const updateNodeDimensions = useAppStore((s: any) => s.updateNodeDimensions);
   const libraryComponents    = useAppStore((s: any) => s.libraryComponents);
   const nodeHandles          = useAppStore((s: any) => {
-    const ln = s.logicalData.nodes.find((n: any) => n.id === id);
-    return ln?.handles;
+    return s.visualData.layoutNodes[id]?.handles;
   });
 
   const connectedHandlesArray = useAppStore(
     useShallow((s: any) => {
       const ports = new Set<string>();
       s.logicalData.edges.forEach((e: any) => {
-        if (e.from === id) ports.add(e.fromPort);
-        if (e.to === id) ports.add(e.toPort);
+        const ve = s.visualData.layoutEdges[e.id];
+        if (e.sourceId === id && ve?.sourceHandle) ports.add(ve.sourceHandle);
+        if (e.targetId === id && ve?.targetHandle) ports.add(ve.targetHandle);
       });
       return Array.from(ports).sort();
     })

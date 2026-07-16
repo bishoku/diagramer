@@ -6,10 +6,13 @@ import { ComponentStudio } from './components/studio/ComponentStudio';
 import { GoogleDriveService } from './services/googleDriveAPI';
 import { ShareLoader } from './components/share/ShareLoader';
 
+import { SharedDiagramLayout } from './components/layout/SharedDiagramLayout';
+
 function App() {
   const currentWorkspace = useAppStore((state) => state.currentWorkspace);
   const loadAppPreferences = useAppStore((state) => state.loadAppPreferences);
   const currentView = useAppStore((state) => state.currentView);
+  const isReadOnly = useAppStore((state) => state.isReadOnly);
 
   useEffect(() => {
     // Load app preferences (language and theme) on startup
@@ -68,7 +71,13 @@ function App() {
   return (
     <>
       <ShareLoader />
-      {currentView === 'studio' ? <ComponentStudio /> : <MainLayout />}
+      {isReadOnly ? (
+        <SharedDiagramLayout />
+      ) : currentView === 'studio' ? (
+        <ComponentStudio />
+      ) : (
+        <MainLayout />
+      )}
     </>
   );
 }

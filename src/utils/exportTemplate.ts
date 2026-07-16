@@ -179,6 +179,16 @@ export const generateStandaloneHtml = (
       transform-origin: center center;
       overflow: visible;
     }
+    .port-dot {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6366f1;
+      border: 2px solid var(--bg-node-card);
+      pointer-events: none;
+      z-index: 5;
+    }
     .node-card.processing {
       border-color: #10b981;
       box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
@@ -1015,6 +1025,24 @@ export const generateStandaloneHtml = (
         tooltipSlot.style.pointerEvents = 'none';
 
         card.appendChild(tooltipSlot);
+
+        // Render port dots (connection points)
+        const handles = visual.handles || [
+          { id: 'top:50', side: 'top', offset: 50 },
+          { id: 'right:50', side: 'right', offset: 50 },
+          { id: 'bottom:50', side: 'bottom', offset: 50 },
+          { id: 'left:50', side: 'left', offset: 50 },
+        ];
+        handles.forEach(function(h) {
+          var dot = document.createElement('div');
+          dot.className = 'port-dot';
+          if (h.side === 'top')    { dot.style.left = h.offset+'%'; dot.style.top = '0'; dot.style.transform = 'translate(-50%,-50%)'; }
+          if (h.side === 'bottom') { dot.style.left = h.offset+'%'; dot.style.bottom = '0'; dot.style.top = 'auto'; dot.style.transform = 'translate(-50%,50%)'; }
+          if (h.side === 'left')   { dot.style.top = h.offset+'%'; dot.style.left = '0'; dot.style.transform = 'translate(-50%,-50%)'; }
+          if (h.side === 'right')  { dot.style.top = h.offset+'%'; dot.style.right = '0'; dot.style.left = 'auto'; dot.style.transform = 'translate(50%,-50%)'; }
+          card.appendChild(dot);
+        });
+
         nodesLayer.appendChild(card);
       });
     }
@@ -1111,8 +1139,9 @@ export const generateStandaloneHtml = (
     function calculateBezierPath(edge) {
       const sourceId = edge.sourceId;
       const targetId = edge.targetId;
-      const rawSourcePort = edge.sourcePort || 'right:50';
-      const rawTargetPort = edge.targetPort || 'left:50';
+      const ve = initialData.visualData.layoutEdges[edge.id] || {};
+      const rawSourcePort = ve.sourceHandle || 'right:50';
+      const rawTargetPort = ve.targetHandle || 'left:50';
 
       // Parse port format: 'side:offset' or legacy 'side' (defaults to 50%)
       function parsePort(portId) {

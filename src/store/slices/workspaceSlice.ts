@@ -50,6 +50,7 @@ export interface WorkspaceSlice {
   toggleViewMode: () => void;
   setReadOnly: (isReadOnly: boolean) => void;
   loadSharedDiagram: (logicalData: import('../../types').LogicalDiagram, visualData: import('../../types').VisualDiagram) => void;
+  cloneSharedToWorkspace: (name: string) => Promise<import('../../types').WorkspaceMeta>;
   manualSave: () => Promise<void>;
   deleteWorkspace: (path: string) => Promise<void>;
 }
@@ -271,8 +272,47 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       isReadOnly: true,
       isDirty: false,
       leftSidebarOpen: false, // hide toolbox
-      rightSidebarOpen: false // hide properties by default
+      rightSidebarOpen: false, // hide properties by default
+      activeNodeProperties: null,
+      activeEdgeProperties: null,
+      pastStates: [],
+      futureStates: []
     });
+  },
+
+  cloneSharedToWorkspace: async (name: string) => {
+    try {
+      const state = get();
+      
+      // 1. Create a new workspace metadata record
+      const resJson = await StorageService.create_workspace(name, state.currentWorkspace?.description || '');
+      const ws: WorkspaceMeta = JSON.parse(resJson);
+      
+      // 2. Save the current diagram under the new workspace path
+      const logicalJson = JSON.stringify(state.logicalData);
+      const visualJson = JSON.stringify(state.visualData);
+      await StorageService.save_diagram(ws.path, logicalJson, visualJson);
+      
+      // 3. Set the new workspace as active and disable read-only mode
+      set({
+        currentWorkspace: ws,
+        isReadOnly: false,
+        isDirty: false,
+        leftSidebarOpen: true,
+        rightSidebarOpen: true,
+        pastStates: [],
+        futureStates: []
+      });
+      
+      // 4. Refresh workspace list and library
+      await get().fetchRecentWorkspaces();
+      await get().loadLibrary();
+      
+      return ws;
+    } catch (err) {
+      console.error('Error cloning shared diagram:', err);
+      throw err;
+    }
   },
 
   manualSave: async () => {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Share2, Lock, Copy, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import { useAppStore } from '../../../store/useAppStore';
 import { prepareShareData } from '../../../utils/shareUtils';
+import { translations } from '../../../i18n/translations';
 
 interface ShareModalProps {
   onClose: () => void;
@@ -11,6 +13,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
   const logicalData = useAppStore((s) => s.logicalData);
   const visualData = useAppStore((s) => s.visualData);
   const currentView = useAppStore((s) => s.currentView);
+  const language = useAppStore((s) => s.language);
+  const isTr = language === 'tr';
+  const t = translations[language];
 
   const [pin, setPin] = useState('');
   const [usePin, setUsePin] = useState(false);
@@ -21,10 +26,18 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
 
   // MAX URL length for safe sharing is generally around 2000 characters.
   // We leave some buffer for the domain name.
-  const MAX_SAFE_URL_LENGTH = 1800;
+  const MAX_SAFE_URL_LENGTH = 8000;
 
   useEffect(() => {
-    generateLink();
+    if (usePin && pin.length < 4) {
+      setShareUrl('');
+      setError(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      generateLink();
+    }, 400);
+    return () => clearTimeout(timer);
   }, [usePin, pin]);
 
   const generateLink = async () => {
@@ -51,12 +64,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
       const url = `${baseUrl}#share=${compressedBase64}`;
 
       if (url.length > MAX_SAFE_URL_LENGTH) {
-        setError(`Diyagram boyutu URL ile paylaşmak için çok büyük. Lütfen daha az bileşen içeren bir diyagram paylaşmayı deneyin.`);
+        setError(t.urlTooLongError);
       } else {
         setShareUrl(url);
       }
     } catch (err: any) {
-      setError(err.message || 'Link oluşturulurken bir hata oluştu');
+      setError(err.message || (isTr ? 'Link oluşturulurken bir hata oluştu' : 'An error occurred while generating link'));
     } finally {
       setIsGenerating(false);
     }
@@ -73,8 +86,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div
         className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
@@ -86,10 +99,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Diyagramı Paylaş
+                {t.shareTitle}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Görüntüleme linki oluştur (Sadece Okuma)
+                {t.shareSubtitle}
               </p>
             </div>
           </div>
@@ -116,7 +129,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
               />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                 <Lock className="w-4 h-4" />
-                PIN ile şifrele (Zero-Knowledge)
+                {t.encryptWithPin}
               </span>
             </label>
 
@@ -126,13 +139,19 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
                   type="password"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="En az 4 haneli PIN girin"
+                  placeholder={t.pinPlaceholder}
                   className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                   maxLength={8}
                 />
-                <p className="text-xs text-gray-500 mt-2">
-                  Veri tarayıcınızda şifrelenir. PIN olmadan kimse (biz dahil) diyagramınızı göremez.
-                </p>
+                {pin.length > 0 && pin.length < 4 ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">
+                    {isTr ? `PIN en az 4 karakter olmalıdır (Mevcut: ${pin.length}/8)` : `PIN must be at least 4 characters (Current: ${pin.length}/8)`}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {t.pinHint}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -140,7 +159,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
           {/* Share Link Result */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Paylaşım Linki (Geçici ve Statik)
+              {t.shareLinkLabel}
             </label>
 
             {error ? (
@@ -155,7 +174,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
                 <input
                   type="text"
                   readOnly
-                  value={isGenerating ? 'Link oluşturuluyor...' : shareUrl}
+                  value={isGenerating ? (isTr ? 'Link oluşturuluyor...' : 'Generating link...') : shareUrl}
                   className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 outline-none"
                 />
                 <button
@@ -168,7 +187,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
                     }`}
                 >
                   {copied ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                  {copied ? 'Kopyalandı' : 'Kopyala'}
+                  {copied ? t.copiedBtn : t.copyBtn}
                 </button>
               </div>
             )}
@@ -177,13 +196,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
           <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-lg flex items-start gap-2">
             <ExternalLink className="w-4 h-4 shrink-0 mt-0.5" />
             <p>
-              Bu link üzerinden gönderilen diyagram, alıcının kendi cihazında çalışır.
-              Görüntüleyen kişi değişiklik yapmak isterse diyagramı kendi <b>çalışma alanına kopyalayarak</b> düzenleyebilir.
+              {t.shareNotice}
             </p>
           </div>
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

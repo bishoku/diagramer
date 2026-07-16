@@ -170,7 +170,26 @@ export const translations = {
     rectangleCard: "Dikdörtgen Kutu",
     circleEllipse: "Daire / Elips",
     textBox: "Metin Alanı",
-    imageAsset: "Resim / İkon"
+    imageAsset: "Resim / İkon",
+    
+    // Sharing
+    shareTitle: "Diyagramı Paylaş",
+    shareSubtitle: "Görüntüleme ve İzleme Linki (Sadece Okuma)",
+    encryptWithPin: "PIN ile şifrele (Zero-Knowledge)",
+    pinPlaceholder: "En az 4 haneli PIN girin",
+    pinHint: "Veri tarayıcınızda şifrelenir. PIN olmadan kimse (biz dahil) diyagramınızı göremez.",
+    shareLinkLabel: "Paylaşım Linki (Geçici ve Statik)",
+    copyBtn: "Kopyala",
+    copiedBtn: "Kopyalandı",
+    urlTooLongError: "Diyagram boyutu URL ile paylaşmak için çok büyük. Lütfen daha az bileşen içeren bir diyagram paylaşmayı deneyin.",
+    shareNotice: "Bu link üzerinden gönderilen diyagram, alıcının kendi cihazında çalışır. Görüntüleyen kişi değişiklik yapmak isterse diyagramı kendi çalışma alanına kopyalayarak düzenleyebilir.",
+    loadingDiagram: "Diyagram Yükleniyor...",
+    loadingSub: "Güvenli bağlantı kuruluyor ve veri çözülüyor",
+    loadFailed: "Yükleme Başarısız",
+    backToHome: "Ana Sayfaya Dön",
+    secureDiagram: "Güvenli Diyagram",
+    enterPinNotice: "Bu diyagramı görüntülemek için lütfen göndericinin belirlediği PIN kodunu girin.",
+    unlockBtn: "Kilidi Aç"
   },
   en: {
     welcomeTitle: "YADA",
@@ -343,7 +362,26 @@ export const translations = {
     rectangleCard: "Rectangle Card",
     circleEllipse: "Circle / Ellipse",
     textBox: "Text Box",
-    imageAsset: "Image / Asset"
+    imageAsset: "Image / Asset",
+    
+    // Sharing
+    shareTitle: "Share Diagram",
+    shareSubtitle: "Visualization & Tracking Link (Read-Only)",
+    encryptWithPin: "Encrypt with PIN (Zero-Knowledge)",
+    pinPlaceholder: "Enter at least 4-digit PIN",
+    pinHint: "Data is encrypted in your browser. Nobody (including us) can view your diagram without the PIN.",
+    shareLinkLabel: "Sharing Link (Temporary & Static)",
+    copyBtn: "Copy",
+    copiedBtn: "Copied",
+    urlTooLongError: "Diagram size is too large to share via URL. Please try sharing a diagram with fewer components.",
+    shareNotice: "The diagram sent via this link runs on the recipient's own device. If the viewer wants to make changes, they can edit it by copying it to their own workspace.",
+    loadingDiagram: "Loading Diagram...",
+    loadingSub: "Establishing secure connection and decrypting data",
+    loadFailed: "Loading Failed",
+    backToHome: "Go Back to Home",
+    secureDiagram: "Secure Diagram",
+    enterPinNotice: "Please enter the PIN code set by the sender to view this diagram.",
+    unlockBtn: "Unlock"
   }
 };
 

@@ -89,7 +89,7 @@ const performSave = async (): Promise<boolean> => {
   if (isSavingLock) return false;
   
   const state = useAppStore.getState();
-  if (!state.currentWorkspace) return false;
+  if (!state.currentWorkspace || state.isReadOnly) return false;
 
   isSavingLock = true;
   useAppStore.setState({ isSaving: true });
@@ -142,7 +142,7 @@ export const startAutoSave = () => {
   if (autoSaveInterval) return;
   autoSaveInterval = setInterval(async () => {
     const state = useAppStore.getState();
-    if (state.isDirty && state.currentWorkspace && !isSavingLock) {
+    if (state.isDirty && state.currentWorkspace && !state.isReadOnly && !isSavingLock) {
       console.log('[AutoSave] Triggering save...');
       await performSave();
     }

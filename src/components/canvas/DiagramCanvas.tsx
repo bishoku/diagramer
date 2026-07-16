@@ -77,6 +77,7 @@ const FlowWrapper: React.FC = () => {
   const focusedNodeId = useAppStore((s) => s.focusedNodeId);
   const setFocusedNodeId = useAppStore((s) => s.setFocusedNodeId);
   const isPlaying = useAppStore((s) => s.isPlaying);
+  const isReadOnly = useAppStore((s) => s.isReadOnly);
   const setActiveNodeProperties = useAppStore((s) => s.setActiveNodeProperties);
   const setActiveEdgeProperties = useAppStore((s) => s.setActiveEdgeProperties);
   const clearActiveProperties = useAppStore((s) => s.clearActiveProperties);
@@ -816,21 +817,24 @@ const FlowWrapper: React.FC = () => {
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
-        nodesDraggable={!isPlaying}
-        nodesConnectable={!isPlaying}
+        nodesDraggable={!isPlaying && !isReadOnly}
+        nodesConnectable={!isPlaying && !isReadOnly}
+        elementsSelectable={!isReadOnly}
+        nodesFocusable={!isReadOnly}
+        edgesFocusable={!isReadOnly}
         minZoom={0.05}
         maxZoom={3}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onConnectStart={onConnectStart}
-        onConnectEnd={onConnectEnd}
-        onReconnect={onReconnect}
+        onNodesChange={isReadOnly ? undefined : onNodesChange}
+        onEdgesChange={isReadOnly ? undefined : onEdgesChange}
+        onConnect={isReadOnly ? undefined : onConnect}
+        onConnectStart={isReadOnly ? undefined : onConnectStart}
+        onConnectEnd={isReadOnly ? undefined : onConnectEnd}
+        onReconnect={isReadOnly ? undefined : onReconnect}
         onMoveEnd={onMoveEnd}
-        onNodeContextMenu={onNodeContextMenu}
-        onEdgeContextMenu={onEdgeContextMenu}
+        onNodeContextMenu={isReadOnly ? undefined : onNodeContextMenu}
+        onEdgeContextMenu={isReadOnly ? undefined : onEdgeContextMenu}
         onEdgeClick={handleEdgeClick}
         onPaneClick={onPaneClick}
         onMoveStart={() => {
