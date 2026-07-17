@@ -139,12 +139,38 @@ export const tempoAdapter: DiagramAdapter = {
     // 2. Sort spans by start time chronologically
     spans.sort((a, b) => a.startTime - b.startTime);
 
-    // 2. Filter spans by requested types — but always keep cross-service spans
-    // so we don't break the parent-child linking needed for edge generation.
+    // 2. Filter spans by requested types or AST
     let filteredSpans = spans;
-    if (filters?.types && filters.types.length > 0) {
-      // Determine which services are "active" based on the filter criteria.
-      // A service is active if any of its spans match the requested types.
+    
+    if (filters?.ast) {
+      // Import the evaluator dynamically or make sure it's available.
+      // Wait, we can't dynamically import easily if it's synchronous without await, but parse is async!
+      // Let's import it at the top of the file.
+      const { evaluateFilterAST } = await import('../utils/filterEvaluator');
+      
+      const activeServices = new Set<string>();
+      spans.forEach(span => {
+        // Evaluate the span attributes (combining with serviceName for convenience if they want to filter by serviceName)
+        const combinedAttributes = {
+          ...span.attributes,
+          'service.name': span.serviceName,
+          'span.name': span.name,
+          'span.duration': Math.max(100, Math.floor((span.endTime - span.startTime) / 1000000))
+        };
+        
+        if (evaluateFilterAST(combinedAttributes, filters.ast)) {
+          activeServices.add(span.serviceName);
+        }
+      });
+
+      if (activeServices.size > 0) {
+        filteredSpans = spans.filter(span => activeServices.has(span.serviceName));
+      } else {
+        filteredSpans = spans; // Fallback if no match
+      }
+      
+    } else if (filters?.types && filters.types.length > 0) {
+      // Legacy basic filter
       const activeServices = new Set<string>();
       spans.forEach(span => {
         const keys = Object.keys(span.attributes);
@@ -160,15 +186,12 @@ export const tempoAdapter: DiagramAdapter = {
         }
       });
 
-      // Only include spans whose service is active — this removes entire services
-      // (e.g. postgres-db when SQL filter is off) but keeps all their cross-service spans.
       if (activeServices.size > 0) {
         filteredSpans = spans.filter(span => activeServices.has(span.serviceName));
       } else {
         filteredSpans = spans; // fallback: no filter matched anything, show all
       }
     }
-
 
     // 3. Create LogicalNodes
     const services = new Set<string>();
@@ -297,5 +320,104 @@ export const tempoAdapter: DiagramAdapter = {
     const visualData = generateLayout(logicalData, { timelines }, 'LR');
 
     return { logicalData, visualData };
+  },
+  extractMetadata: async (rawInput: string) => {
+    let data;
+    try {
+      data = JSON.parse(rawInput);
+    } catch (e) {
+      throw new Error('Invalid JSON file.');
+    }
+
+    const attributeTypes = new Map<string, 'string' | 'number' | 'boolean'>();
+    const attributeValues = new Map<string, Set<string | number | boolean>>();
+
+    const recordAttribute = (key: string, value: any) => {
+      if (!attributeTypes.has(key)) {
+        if (typeof value === 'boolean') attributeTypes.set(key, 'boolean');
+        else if (typeof value === 'number') attributeTypes.set(key, 'number');
+        else attributeTypes.set(key, 'string');
+      }
+
+      let valSet = attributeValues.get(key);
+      if (!valSet) {
+        valSet = new Set();
+        attributeValues.set(key, valSet);
+      }
+      // Limit to 50 unique values per attribute to prevent memory bloat
+      if (valSet.size < 50 && value !== undefined && value !== null && value !== '') {
+        valSet.add(value);
+      }
+    };
+
+    const processAttributes = (attrs: any) => {
+      if (!attrs) return;
+      if (Array.isArray(attrs)) {
+        for (const attr of attrs) {
+          if (attr.value?.stringValue !== undefined) recordAttribute(attr.key, attr.value.stringValue);
+          else if (attr.value?.intValue !== undefined) recordAttribute(attr.key, Number(attr.value.intValue));
+          else if (attr.value?.Value?.StringValue !== undefined) recordAttribute(attr.key, attr.value.Value.StringValue);
+          else if (attr.value?.Value?.IntValue !== undefined) recordAttribute(attr.key, Number(attr.value.Value.IntValue));
+          else if (attr.value?.boolValue !== undefined) recordAttribute(attr.key, attr.value.boolValue);
+        }
+      } else {
+        for (const key of Object.keys(attrs)) {
+          recordAttribute(key, attrs[key]);
+        }
+      }
+    };
+
+    const extractFromSpans = (resourceSpans: any[]) => {
+      for (const rs of resourceSpans) {
+        if (rs.resource?.attributes) {
+          processAttributes(rs.resource.attributes);
+        }
+        if (rs.scopeSpans) {
+          for (const ss of rs.scopeSpans) {
+            if (ss.spans) {
+              for (const span of ss.spans) {
+                if (span.attributes) processAttributes(span.attributes);
+              }
+            }
+          }
+        }
+      }
+    };
+
+    if (data.batches) {
+      for (const batch of data.batches) {
+        if (batch.resourceSpans) {
+          extractFromSpans(batch.resourceSpans);
+        } else if (batch.resource !== undefined) {
+          if (batch.resource.attributes) processAttributes(batch.resource.attributes);
+          const spanGroups = batch.instrumentationLibrarySpans ?? batch.scopeSpans ?? [];
+          for (const group of spanGroups) {
+            for (const span of (group.spans ?? [])) {
+              if (span.attributes) processAttributes(span.attributes);
+            }
+          }
+        }
+      }
+    } else if (data.resourceSpans) {
+      extractFromSpans(data.resourceSpans);
+    } else if (Array.isArray(data)) {
+      extractFromSpans(data);
+    }
+
+    // Add implicit standard attributes
+    recordAttribute('service.name', 'string');
+    recordAttribute('span.name', 'string');
+    recordAttribute('span.duration', 'number');
+
+    const attributes = Array.from(attributeTypes.entries()).map(([key, type]) => ({
+      key,
+      type,
+      values: Array.from(attributeValues.get(key) || [])
+    }));
+
+    // Sort alphabetically
+    attributes.sort((a, b) => a.key.localeCompare(b.key));
+
+    return { attributes };
   }
 };

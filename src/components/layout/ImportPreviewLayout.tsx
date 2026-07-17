@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { DiagramCanvas } from '../canvas/DiagramCanvas';
 import { TimelinePanel } from './TimelinePanel';
-import { X, Save, Filter, Activity, Server, Database, ArrowRightLeft } from 'lucide-react';
+import { X, Save, Activity } from 'lucide-react';
 import { availableAdapters } from '../../adapters';
+
+import { FilterAST, AttributeMetadata } from '../../adapters/types';
+import { TraceFilterBuilder } from '../filters/TraceFilterBuilder';
 
 export const ImportPreviewLayout: React.FC = () => {
   const setWorkspace = useAppStore(s => s.setWorkspace);
@@ -11,31 +14,83 @@ export const ImportPreviewLayout: React.FC = () => {
   const importAdapterId = useAppStore(s => s.importAdapterId);
   const loadImportPreview = useAppStore(s => s.loadImportPreview);
   const cloneSharedToWorkspace = useAppStore(s => s.cloneSharedToWorkspace);
-  const leftSidebarOpen = useAppStore(s => s.leftSidebarOpen);
   const setViewMode = useAppStore(s => s.setViewMode);
   const setImportState = useAppStore(s => s.setImportState);
   const timelineHeight = useAppStore((s) => s.timelineHeight);
   const timelineOpen = useAppStore((s: any) => s.timelineOpen);
+  const setTimelineHeight = useAppStore((s) => s.setTimelineHeight);
 
-  const [filters, setFilters] = useState<string[]>(['http', 'sql', 'grpc']);
+  const [filterAst, setFilterAst] = useState<FilterAST | null>(null);
+  const [attributes, setAttributes] = useState<AttributeMetadata[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
+
+  const [isResizing, setIsResizing] = useState(false);
+  const resizerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    const newHeight = window.innerHeight - e.clientY;
+    const clampedHeight = Math.min(Math.max(140, newHeight), window.innerHeight * 0.7);
+    setTimelineHeight(clampedHeight);
+  }, [isResizing, setTimelineHeight]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  // Extract metadata when data loads
+  useEffect(() => {
+    if (!importRawData || !importAdapterId) return;
+    
+    const adapter = availableAdapters.find(a => a.id === importAdapterId);
+    if (!adapter) return;
+
+    const extract = async () => {
+      if (adapter.extractMetadata) {
+        try {
+          const meta = await adapter.extractMetadata(importRawData);
+          setAttributes(meta.attributes);
+        } catch (err) {
+          console.error("Failed to extract metadata", err);
+        }
+      }
+    };
+
+    extract();
+  }, [importRawData, importAdapterId]);
 
   // Handle re-parsing when filters change
   useEffect(() => {
     if (!importRawData || !importAdapterId) return;
     
     const adapter = availableAdapters.find(a => a.id === importAdapterId);
-    if (!adapter) {
-      console.error(`Adapter not found: ${importAdapterId}`);
-      return;
-    }
+    if (!adapter) return;
 
     const reParse = async () => {
       setLoading(true);
       try {
-        const result = await adapter.parse(importRawData, { types: filters });
+        const result = await adapter.parse(importRawData, { ast: filterAst || undefined });
         loadImportPreview(result.logicalData, result.visualData);
       } catch (err) {
         console.error("Failed to parse trace with filters", err);
@@ -44,14 +99,13 @@ export const ImportPreviewLayout: React.FC = () => {
       }
     };
 
-    reParse();
-  }, [filters, importRawData, importAdapterId]); // intentionally omitting loadImportPreview
+    // Add a tiny debounce to prevent rapid re-parsing when typing in code mode
+    const timeout = setTimeout(() => {
+      reParse();
+    }, 300);
 
-  const handleToggleFilter = (type: string) => {
-    setFilters(prev => 
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
-  };
+    return () => clearTimeout(timeout);
+  }, [filterAst, importRawData, importAdapterId]); // intentionally omitting loadImportPreview
 
   const handleCancel = () => {
     setViewMode('freeform');
@@ -105,44 +159,15 @@ export const ImportPreviewLayout: React.FC = () => {
         </div>
       </div>
 
+      {/* Filter Bar */}
+      <TraceFilterBuilder 
+        attributes={attributes} 
+        onChange={(ast) => setFilterAst(ast)} 
+        initialAst={filterAst}
+      />
+
       {/* Main Area */}
-      <div className="flex-1 flex overflow-hidden relative">
-        
-        {/* Left Sidebar (Filters) */}
-        {leftSidebarOpen && (
-          <aside className="w-64 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] dark:shadow-none z-10 transition-all duration-300 ease-in-out">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5" />
-                Data Filters
-              </h2>
-            </div>
-            <div className="p-4 space-y-4">
-              <label onClick={() => handleToggleFilter('http')} className="flex items-center gap-3 cursor-pointer group">
-                <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${filters.includes('http') ? 'bg-indigo-500 border-indigo-500' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'}`}>
-                  {filters.includes('http') && <Server className="w-3 h-3 text-white" />}
-                </div>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-500 transition-colors">HTTP Spans</span>
-              </label>
-
-              <label onClick={() => handleToggleFilter('sql')} className="flex items-center gap-3 cursor-pointer group">
-                <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${filters.includes('sql') ? 'bg-indigo-500 border-indigo-500' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'}`}>
-                  {filters.includes('sql') && <Database className="w-3 h-3 text-white" />}
-                </div>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-500 transition-colors">SQL Spans</span>
-              </label>
-
-              <label onClick={() => handleToggleFilter('grpc')} className="flex items-center gap-3 cursor-pointer group">
-                <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${filters.includes('grpc') ? 'bg-indigo-500 border-indigo-500' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'}`}>
-                  {filters.includes('grpc') && <ArrowRightLeft className="w-3 h-3 text-white" />}
-                </div>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-500 transition-colors">gRPC Spans</span>
-              </label>
-            </div>
-          </aside>
-        )}
-
-        <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-950" style={{ minHeight: 0 }}>
+      <div className="flex-1 flex flex-col overflow-hidden relative">
           {/* Canvas — needs flex-1 + min-h-0 so React Flow fills remaining space */}
           <div className="flex-1 min-h-0 relative" style={{ overflow: 'hidden' }}>
             {loading && (
@@ -155,7 +180,12 @@ export const ImportPreviewLayout: React.FC = () => {
 
           {/* Resizer splitter bar */}
           {timelineOpen && (
-            <div className="h-1 bg-slate-200/60 hover:h-1.5 hover:bg-indigo-500 dark:bg-slate-800 dark:hover:bg-indigo-500 cursor-ns-resize transition-all duration-150 relative z-30 flex-shrink-0" />
+            <div
+              ref={resizerRef}
+              onMouseDown={handleMouseDown}
+              className="h-1 bg-slate-200/60 hover:h-1.5 hover:bg-indigo-500 dark:bg-slate-800 dark:hover:bg-indigo-500 cursor-ns-resize transition-all duration-150 relative z-30 flex-shrink-0"
+              title="Resize timeline"
+            />
           )}
 
           {/* Timeline panel — constrained height, does NOT grow */}
@@ -165,7 +195,6 @@ export const ImportPreviewLayout: React.FC = () => {
           >
             <TimelinePanel />
           </div>
-        </main>
       </div>
 
       {/* Save Modal */}
