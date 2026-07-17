@@ -10,6 +10,7 @@ export const tempoAdapter: DiagramAdapter = {
   name: 'Grafana Tempo (OTLP)',
   description: 'Import OpenTelemetry JSON trace exports from Grafana Tempo.',
   supportedFormats: ['.json'],
+  importMethod: 'text-modal',
 
   parse: async (rawInput: string, filters?: ImportFilter): Promise<{ logicalData: LogicalDiagram; visualData: VisualDiagram }> => {
     let data;

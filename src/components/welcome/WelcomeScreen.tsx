@@ -1,273 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { useAppStore } from '../../store/useAppStore';
-import { open } from '@tauri-apps/plugin-dialog';
-import { readFile } from '@tauri-apps/plugin-fs';
-import { FolderPlus, FolderOpen, History, Info, AlertCircle, HardDrive, Settings, Globe, Moon, Sun, Check, Download, Trash2, Upload, Edit, Activity } from 'lucide-react';
-import { translations } from '../../i18n/translations';
-import { isTauri, StorageService } from '../../services/storage';
-import { exportWorkspace, importWorkspace, ImportConflict, ConflictResolution } from '../../utils/workspaceZip';
-import { ChevronDown } from 'lucide-react';
-
+import React from 'react';
+import { Settings } from 'lucide-react';
+import { useWelcome } from './hooks/useWelcome';
+import { WorkspaceList } from './components/WorkspaceList';
+import { CreateWorkspaceForm } from './components/CreateWorkspaceForm';
+import { PreferencesModal } from './components/PreferencesModal';
+import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
+import { RenameWorkspaceModal } from './components/RenameWorkspaceModal';
+import { ImportConflictsModal } from './components/ImportConflictsModal';
+import { TextImportModal } from './TextImportModal';
+import { availableAdapters } from '../../adapters';
 
 export const WelcomeScreen: React.FC = () => {
-  const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
-  const createWorkspace = useAppStore((s) => s.createWorkspace);
-  const loadWorkspace = useAppStore((s) => s.loadWorkspace);
-  const deleteWorkspace = useAppStore((s) => s.deleteWorkspace);
-  const fetchRecentWorkspaces = useAppStore((s) => s.fetchRecentWorkspaces);
-  const language = useAppStore((s) => s.language);
-  const theme = useAppStore((s) => s.theme);
-  const changeLanguage = useAppStore((s) => s.changeLanguage);
-  const changeTheme = useAppStore((s) => s.changeTheme);
-
-  const t = translations[language];
-
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showPrefModal, setShowPrefModal] = useState(false);
-  const [showImportMenu, setShowImportMenu] = useState(false);
-
-  const setRawTraceJson = useAppStore((s) => s.setRawTraceJson);
-  const setViewMode = useAppStore((s) => s.setViewMode);
-
-  // Workspace Deletion/Import/Rename States
-  const [workspaceToDelete, setWorkspaceToDelete] = useState<any | null>(null);
-  const [workspaceToRename, setWorkspaceToRename] = useState<any | null>(null);
-  const [renameName, setRenameName] = useState('');
-  const [importConflicts, setImportConflicts] = useState<ImportConflict[]>([]);
-  const [conflictResolver, setConflictResolver] = useState<{
-    resolve: (resolutions: Record<string, ConflictResolution>) => void;
-    reject: (err: any) => void;
-  } | null>(null);
-
-  const handleExport = async (ws: any) => {
-    try {
-      setLoading(true);
-      await exportWorkspace(ws, language);
-    } catch (err: any) {
-      setError(t.exportFailedMsg + err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleImport = async () => {
-    try {
-      let zipData: ArrayBuffer | Uint8Array;
-
-      if (isTauri()) {
-        const selected = await open({
-          multiple: false,
-          filters: [{ name: 'YADA Project', extensions: ['dproj'] }],
-          title: t.selectProjectFile,
-        });
-        if (!selected || typeof selected !== 'string') return;
-        setLoading(true);
-        zipData = await readFile(selected);
-      } else {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.dproj';
-        input.onchange = async (e: any) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          setLoading(true);
-          const reader = new FileReader();
-          reader.onload = async (event: any) => {
-            try {
-              zipData = event.target.result;
-              await runImport(zipData);
-            } catch (err: any) {
-              setError(err.message || err.toString());
-              setLoading(false);
-            }
-          };
-          reader.readAsArrayBuffer(file);
-        };
-        input.click();
-        return;
-      }
-
-      await runImport(zipData);
-    } catch (err: any) {
-      setError(err.message || err.toString());
-      setLoading(false);
-    }
-  };
-
-  const handleImportTempo = async () => {
-    setShowImportMenu(false);
-    try {
-      let rawJson = '';
-      if (isTauri()) {
-        const selected = await open({
-          multiple: false,
-          filters: [{ name: 'Tempo Trace', extensions: ['json'] }],
-          title: 'Select Tempo Trace JSON',
-        });
-        if (!selected || typeof selected !== 'string') return;
-        setLoading(true);
-        const data = await readFile(selected);
-        rawJson = new TextDecoder().decode(data);
-      } else {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = async (e: any) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          setLoading(true);
-          const reader = new FileReader();
-          reader.onload = async (event: any) => {
-            try {
-              rawJson = event.target.result as string;
-              setRawTraceJson(rawJson);
-              setViewMode('import-preview');
-            } catch (err: any) {
-              setError(err.message || err.toString());
-            } finally {
-              setLoading(false);
-            }
-          };
-          reader.readAsText(file);
-        };
-        input.click();
-        return;
-      }
-      setRawTraceJson(rawJson);
-      setViewMode('import-preview');
-    } catch (err: any) {
-      setError(err.message || err.toString());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const runImport = async (zipData: ArrayBuffer | Uint8Array) => {
-    try {
-      const saveDiagramFn = async (path: string, logicalJson: string, visualJson: string) => {
-        await StorageService.save_diagram(path, logicalJson, visualJson);
-      };
-
-      const resolveConflictsFn = (conflictsList: ImportConflict[]) => {
-        return new Promise<Record<string, ConflictResolution>>((resolve, reject) => {
-          setImportConflicts(conflictsList);
-          setConflictResolver({ resolve, reject });
-        });
-      };
-
-      const ws = await importWorkspace(
-        zipData,
-        createWorkspace,
-        saveDiagramFn,
-        resolveConflictsFn,
-        language
-      );
-
-      await loadWorkspace(ws.path);
-    } catch (err: any) {
-      setError(err.message || err.toString());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!workspaceToDelete) return;
-    setLoading(true);
-    try {
-      await deleteWorkspace(workspaceToDelete.path);
-      setWorkspaceToDelete(null);
-    } catch (err: any) {
-      setError(t.deletionFailed + err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRenameWorkspace = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!workspaceToRename || !renameName.trim()) return;
-    setLoading(true);
-    try {
-      const updatedWs = {
-        ...workspaceToRename,
-        name: renameName.trim(),
-        lastAccessed: new Date().toISOString()
-      };
-      await StorageService.save_workspace(JSON.stringify(updatedWs));
-      await fetchRecentWorkspaces();
-      setWorkspaceToRename(null);
-      setRenameName('');
-    } catch (err: any) {
-      setError(t.renameFailed + err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRecentWorkspaces();
-  }, []);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError(t.workspaceNamePlaceholder);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      await createWorkspace(name.trim(), description.trim());
-    } catch (err: any) {
-      setError(`${t.workspaceCreateError} ${err?.toString() || 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLoadRecent = async (wsPath: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await loadWorkspace(wsPath);
-    } catch (err: any) {
-      setError(`${t.workspaceLoadError} ${err}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatPath = (fullPath: string) => {
-    if (fullPath.length > 40) {
-      return '...' + fullPath.substring(fullPath.length - 37);
-    }
-    return fullPath;
-  };
-
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
+  const {
+    recentWorkspaces,
+    language,
+    theme,
+    changeLanguage,
+    changeTheme,
+    googleUser,
+    t,
+    name,
+    setName,
+    description,
+    setDescription,
+    error,
+    setError,
+    loading,
+    showPrefModal,
+    setShowPrefModal,
+    showImportMenu,
+    setShowImportMenu,
+    activeTextModalAdapter,
+    setActiveTextModalAdapter,
+    setImportState,
+    setViewMode,
+    workspaceToDelete,
+    setWorkspaceToDelete,
+    workspaceToRename,
+    setWorkspaceToRename,
+    renameName,
+    setRenameName,
+    importConflicts,
+    handleExport,
+    handleImport,
+    confirmDelete,
+    handleRenameWorkspace,
+    handleCreate,
+    handleLoadRecent,
+    onGoogleSignIn,
+    handleResolveConflicts,
+    handleCancelConflicts,
+  } = useWelcome();
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-6 relative overflow-hidden select-none transition-colors duration-300">
-
       {/* Decorative gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[60%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[60%] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none" />
@@ -285,483 +71,101 @@ export const WelcomeScreen: React.FC = () => {
       </div>
 
       <div className="w-full max-w-5xl bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-250 dark:border-slate-800/80 rounded-2xl shadow-xl dark:shadow-2xl overflow-hidden flex flex-col md:flex-row z-10 min-h-[550px] transition-all">
-
         {/* Left Side: Recent Workspaces */}
-        <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <img src="pwa-icon.png" className={"h-12"} alt="YADA Icon" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-650 to-indigo-500 dark:from-indigo-200 dark:via-indigo-100 dark:to-slate-200 bg-clip-text text-transparent">
-                {t.welcomeTitle}
-              </h1>
-            </div>
-
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium text-sm">
-                <History className="w-4 h-4" />
-                <span>{t.recentWorkspaces}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <button
-                    onClick={() => setShowImportMenu(!showImportMenu)}
-                    disabled={loading}
-                    className="text-xs px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors duration-200 font-semibold"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    {t.importDproj}
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-
-                  {showImportMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowImportMenu(false)} />
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 overflow-hidden py-1 animate-in slide-in-from-top-2 duration-200">
-                        <button
-                          onClick={() => { setShowImportMenu(false); handleImport(); }}
-                          className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                          Import Diagram (.dproj)
-                        </button>
-                        <button
-                          onClick={handleImportTempo}
-                          className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
-                        >
-                          <Activity className="w-3.5 h-3.5 text-orange-500" />
-                          Import OTel Trace (.json)
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {recentWorkspaces.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 bg-slate-100/50 dark:bg-slate-950/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
-                <FolderOpen className="w-12 h-12 text-slate-400 dark:text-slate-600 mb-3" />
-                <p className="text-slate-700 dark:text-slate-400 text-sm font-medium">{t.noWorkspaces}</p>
-                <p className="text-slate-500 dark:text-slate-500 text-xs mt-1 max-w-[280px]">
-                  {t.noWorkspacesSub}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                {recentWorkspaces.map((ws) => (
-                  <div
-                    key={ws.path}
-                    className="w-full p-3 bg-slate-100/30 dark:bg-slate-950/30 hover:border-indigo-500/30 border border-slate-200/60 dark:border-slate-800/60 rounded-xl transition-all duration-200 group flex items-center justify-between"
-                  >
-                    <div
-                      onClick={() => handleLoadRecent(ws.path)}
-                      className="flex-1 min-w-0 pr-2 cursor-pointer"
-                    >
-                      <div className="font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-650 dark:group-hover:text-indigo-300 transition-colors text-sm truncate">
-                        {ws.name}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
-                        <HardDrive className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate" title={ws.path}>{formatPath(ws.path)}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="text-right text-[10px] text-slate-550 hidden sm:block">
-                        <div className="font-medium">{t.lastAccess}</div>
-                        <div className="mt-0.5 text-slate-400 dark:text-slate-500">{formatDate(ws.lastAccessed)}</div>
-                      </div>
-
-                      <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => {
-                            setWorkspaceToRename(ws);
-                            setRenameName(ws.name);
-                          }}
-                          title={t.rename}
-                          disabled={loading}
-                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleExport(ws)}
-                          title={t.exportDproj}
-                          disabled={loading}
-                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setWorkspaceToDelete(ws)}
-                          title={t.delete}
-                          disabled={loading}
-                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/45 text-slate-555 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800/50 text-[11px] text-slate-500 flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 flex-shrink-0" />
-            <span>{t.physicalStoreNote}</span>
-          </div>
-        </div>
+        <WorkspaceList
+          recentWorkspaces={recentWorkspaces}
+          loading={loading}
+          language={language}
+          showImportMenu={showImportMenu}
+          setShowImportMenu={setShowImportMenu}
+          availableAdapters={availableAdapters}
+          onLoadRecent={handleLoadRecent}
+          onRenameWorkspace={(ws) => {
+            setWorkspaceToRename(ws);
+            setRenameName(ws.name);
+          }}
+          onExport={handleExport}
+          onDelete={setWorkspaceToDelete}
+          onImportDproj={handleImport}
+          onSelectAdapter={(adapter) => {
+            if (adapter.importMethod === 'text-modal') {
+              setActiveTextModalAdapter(adapter);
+            } else {
+              setActiveTextModalAdapter(adapter);
+            }
+          }}
+        />
 
         {/* Right Side: Create Workspace Form */}
-        <div className="w-full md:w-1/2 p-8 bg-slate-100/10 dark:bg-slate-950/20 flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-6 flex items-center gap-2">
-              <FolderPlus className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-              {t.createWorkspace}
-            </h2>
-
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  {t.workspaceName} *
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setError(null);
-                  }}
-                  disabled={loading}
-                  placeholder={t.workspaceNamePlaceholder}
-                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200"
-                  maxLength={50}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  {t.description}
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={loading}
-                  placeholder={t.descriptionPlaceholder}
-                  rows={4}
-                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200 resize-none"
-                  maxLength={200}
-                />
-              </div>
-
-              {error && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl flex items-start gap-2 text-xs text-red-600 dark:text-red-400">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/45 text-slate-100 font-bold rounded-xl text-sm transition-all duration-200 shadow-lg shadow-indigo-650/10 dark:shadow-indigo-650/20 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-indigo-200 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <FolderPlus className="w-4 h-4" />
-                    <span>{t.createButton}</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            {import.meta.env.VITE_ENABLE_GOOGLE_SYNC === 'true' && (
-              <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
-                <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3 text-center">
-                  {language === 'tr' ? 'Bulut Senkronizasyonu' : 'Cloud Synchronization'}
-                </h3>
-                
-                {!useAppStore.getState().googleUser ? (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const { GoogleDriveService } = await import('../../services/googleDriveAPI');
-                      await GoogleDriveService.signIn();
-                    }}
-                    disabled={loading}
-                    className="w-full py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        fill="#4285F4"
-                      />
-                      <path
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        fill="#34A853"
-                      />
-                      <path
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                        fill="#FBBC05"
-                      />
-                      <path
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        fill="#EA4335"
-                      />
-                    </svg>
-                    <span>{language === 'tr' ? 'Google ile Giriş Yap' : 'Login with Google'}</span>
-                  </button>
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                      <Globe className="w-4 h-4" />
-                      <span>{language === 'tr' ? 'Oturum Açıldı' : 'Signed In'}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 text-center max-w-[240px]">
-                      {language === 'tr' 
-                        ? 'Geçmiş projeleriniz başarıyla buluttan indirildi ve listelendi.' 
-                        : 'Your past projects were successfully fetched and listed.'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
+        <CreateWorkspaceForm
+          name={name}
+          setName={(val) => {
+            setName(val);
+            setError(null);
+          }}
+          description={description}
+          setDescription={setDescription}
+          loading={loading}
+          error={error}
+          language={language}
+          onSubmit={handleCreate}
+          onGoogleSignIn={onGoogleSignIn}
+          googleUser={googleUser}
+        />
       </div>
 
       {/* Global Preferences Modal */}
-      {showPrefModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all animate-in zoom-in-95 duration-200">
-
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Settings className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                {t.appPrefTitle}
-              </h3>
-            </div>
-
-            <div className="space-y-5">
-              {/* Language Selection */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5" />
-                  {t.language}
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => changeLanguage('tr')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${language === 'tr'
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-650/25'
-                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                  >
-                    {language === 'tr' && <Check className="w-3.5 h-3.5" />}
-                    {t.langTr}
-                  </button>
-                  <button
-                    onClick={() => changeLanguage('en')}
-                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${language === 'en'
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-650/25'
-                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                  >
-                    {language === 'en' && <Check className="w-3.5 h-3.5" />}
-                    {t.langEn}
-                  </button>
-                </div>
-              </div>
-
-              {/* Theme Selection */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  {theme === 'light' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                  {t.theme}
-                </label>
-                <div className="flex flex-col gap-1.5">
-                  {([
-                    { key: 'light', label: t.themeLight, Icon: Sun },
-                    { key: 'dark', label: t.themeDark, Icon: Moon },
-                    { key: 'nord', label: t.themeNord, Icon: Moon },
-                    { key: 'dracula', label: t.themeDracula, Icon: Moon },
-                    { key: 'synthwave', label: t.themeSynthwave, Icon: Moon },
-                  ] as const).map(({ key, label: themeLabel, Icon }) => (
-                    <button
-                      key={key}
-                      onClick={() => changeTheme(key)}
-                      className={`py-2 px-3.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center gap-2 ${
-                        theme === key
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-650/25'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5 shrink-0" />
-                      <span className="flex-1 text-left">{themeLabel}</span>
-                      {theme === key && <Check className="w-3.5 h-3.5 shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-5 mt-5 border-t border-slate-200 dark:border-slate-800">
-              <button
-                onClick={() => setShowPrefModal(false)}
-                className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                {t.close}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      <PreferencesModal
+        isOpen={showPrefModal}
+        onClose={() => setShowPrefModal(false)}
+        language={language}
+        theme={theme}
+        onChangeLanguage={changeLanguage}
+        onChangeTheme={changeTheme}
+      />
 
       {/* Delete Confirmation Modal */}
-      {workspaceToDelete && (
-        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all animate-in zoom-in-95 duration-200">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              {t.deleteWorkspace}
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-              {"\"" + workspaceToDelete.name + "\" " + t.deleteWorkspaceConfirm}
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setWorkspaceToDelete(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                {t.cancel}
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-slate-100 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                {t.deletePermanently}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmationModal
+        workspace={workspaceToDelete}
+        onClose={() => setWorkspaceToDelete(null)}
+        onConfirm={confirmDelete}
+        language={language}
+      />
 
       {/* Rename Workspace Modal */}
-      {workspaceToRename && (
-        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all animate-in zoom-in-95 duration-200">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-              <Edit className="w-5 h-5 text-indigo-500" />
-              {t.renameWorkspace}
-            </h3>
-            <form onSubmit={handleRenameWorkspace} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  {t.newName}
-                </label>
-                <input
-                  type="text"
-                  value={renameName}
-                  onChange={(e) => setRenameName(e.target.value)}
-                  disabled={loading}
-                  maxLength={50}
-                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWorkspaceToRename(null);
-                    setRenameName('');
-                  }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-                >
-                  {t.cancel}
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || !renameName.trim()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-100 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-                >
-                  {t.save}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <RenameWorkspaceModal
+        workspace={workspaceToRename}
+        renameName={renameName}
+        setRenameName={setRenameName}
+        loading={loading}
+        onClose={() => {
+          setWorkspaceToRename(null);
+          setRenameName('');
+        }}
+        onSubmit={handleRenameWorkspace}
+        language={language}
+      />
 
       {/* Import Conflict Resolution Modal */}
-      {importConflicts.length > 0 && conflictResolver && (
-        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl transition-all animate-in zoom-in-95 duration-200">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-500 animate-pulse" />
-              {t.conflictTitle}
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-              {t.conflictSub}
-            </p>
+      <ImportConflictsModal
+        importConflicts={importConflicts}
+        onResolve={handleResolveConflicts}
+        onCancel={handleCancelConflicts}
+        language={language}
+      />
 
-            <div className="bg-slate-50 dark:bg-slate-950/50 rounded-xl p-3 max-h-40 overflow-y-auto mb-4 border border-slate-200 dark:border-slate-850">
-              {importConflicts.map((c) => (
-                <div key={c.compId} className="text-xs font-semibold py-1 text-slate-700 dark:text-slate-350">
-                  • {c.name}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const resolutions: Record<string, ConflictResolution> = {};
-                  importConflicts.forEach((c) => (resolutions[c.compId] = 'overwrite'));
-                  conflictResolver.resolve(resolutions);
-                  setImportConflicts([]);
-                  setConflictResolver(null);
-                }}
-                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                {t.conflictOverwrite}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const resolutions: Record<string, ConflictResolution> = {};
-                  importConflicts.forEach((c) => (resolutions[c.compId] = 'copy'));
-                  conflictResolver.resolve(resolutions);
-                  setImportConflicts([]);
-                  setConflictResolver(null);
-                }}
-                className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                {t.conflictKeepBoth}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  conflictResolver.reject(new Error(t.importCancelled));
-                  setImportConflicts([]);
-                  setConflictResolver(null);
-                }}
-                className="w-full py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-500 dark:text-slate-400 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                {t.cancel}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Adapter Text Paste Import Modal */}
+      {activeTextModalAdapter && (
+        <TextImportModal
+          adapterId={activeTextModalAdapter.id}
+          adapterName={activeTextModalAdapter.name}
+          onClose={() => setActiveTextModalAdapter(null)}
+          onSubmit={(adapterId, data) => {
+            setActiveTextModalAdapter(null);
+            setImportState(adapterId, data);
+            setViewMode('import-preview');
+          }}
+        />
       )}
     </div>
   );

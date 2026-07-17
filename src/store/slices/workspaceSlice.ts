@@ -49,8 +49,9 @@ export interface WorkspaceSlice {
   viewMode: 'freeform' | 'sequence' | 'import-preview';
   toggleViewMode: () => void;
   setViewMode: (mode: 'freeform' | 'sequence' | 'import-preview') => void;
-  rawTraceJson: string | null;
-  setRawTraceJson: (data: string | null) => void;
+  importRawData: string | null;
+  importAdapterId: string | null;
+  setImportState: (adapterId: string | null, data: string | null) => void;
 
   setReadOnly: (isReadOnly: boolean) => void;
   loadSharedDiagram: (logicalData: import('../../types').LogicalDiagram, visualData: import('../../types').VisualDiagram) => void;
@@ -261,8 +262,9 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
     viewMode: state.viewMode === 'freeform' ? 'sequence' as const : 'freeform' as const 
   })),
   setViewMode: (mode) => set({ viewMode: mode }),
-  rawTraceJson: null,
-  setRawTraceJson: (data) => set({ rawTraceJson: data }),
+  importRawData: null,
+  importAdapterId: null,
+  setImportState: (adapterId, data) => set({ importAdapterId: adapterId, importRawData: data }),
 
   setReadOnly: (isReadOnly: boolean) => set({ isReadOnly }),
 

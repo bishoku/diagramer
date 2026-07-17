@@ -217,7 +217,8 @@ export interface AppState {
   
   // Canvas View Mode
   viewMode: 'freeform' | 'sequence' | 'import-preview';
-  rawTraceJson: string | null;
+  importRawData: string | null;
+  importAdapterId: string | null;
 
   // Phase 5 Studio State
   currentView: 'diagram' | 'studio';
@@ -352,7 +353,7 @@ export interface AppState {
   loadSharedDiagram: (logicalData: LogicalDiagram, visualData: VisualDiagram) => void;
   loadImportPreview: (logicalData: LogicalDiagram, visualData: VisualDiagram) => void;
   cloneSharedToWorkspace: (name: string) => Promise<WorkspaceMeta>;
-  setRawTraceJson: (data: string | null) => void;
+  setImportState: (adapterId: string | null, data: string | null) => void;
   setViewMode: (mode: 'freeform' | 'sequence' | 'import-preview') => void;
 
 

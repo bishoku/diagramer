@@ -9,5 +9,6 @@ export interface DiagramAdapter {
   name: string;
   description: string;
   supportedFormats: string[]; // e.g., ['.json']
+  importMethod?: 'file-picker' | 'text-modal';
   parse: (rawInput: string, filters?: ImportFilter) => Promise<{ logicalData: LogicalDiagram; visualData: VisualDiagram }>;
 }

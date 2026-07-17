@@ -3,16 +3,17 @@ import { useAppStore } from '../../store/useAppStore';
 import { DiagramCanvas } from '../canvas/DiagramCanvas';
 import { TimelinePanel } from './TimelinePanel';
 import { X, Save, Filter, Activity, Server, Database, ArrowRightLeft } from 'lucide-react';
-import { tempoAdapter } from '../../adapters/tempoAdapter';
+import { availableAdapters } from '../../adapters';
 
 export const ImportPreviewLayout: React.FC = () => {
   const setWorkspace = useAppStore(s => s.setWorkspace);
-  const rawTraceJson = useAppStore(s => s.rawTraceJson);
+  const importRawData = useAppStore(s => s.importRawData);
+  const importAdapterId = useAppStore(s => s.importAdapterId);
   const loadImportPreview = useAppStore(s => s.loadImportPreview);
   const cloneSharedToWorkspace = useAppStore(s => s.cloneSharedToWorkspace);
   const leftSidebarOpen = useAppStore(s => s.leftSidebarOpen);
   const setViewMode = useAppStore(s => s.setViewMode);
-  const setRawTraceJson = useAppStore(s => s.setRawTraceJson);
+  const setImportState = useAppStore(s => s.setImportState);
   const timelineHeight = useAppStore((s) => s.timelineHeight);
   const timelineOpen = useAppStore((s: any) => s.timelineOpen);
 
@@ -23,12 +24,18 @@ export const ImportPreviewLayout: React.FC = () => {
 
   // Handle re-parsing when filters change
   useEffect(() => {
-    if (!rawTraceJson) return;
+    if (!importRawData || !importAdapterId) return;
     
+    const adapter = availableAdapters.find(a => a.id === importAdapterId);
+    if (!adapter) {
+      console.error(`Adapter not found: ${importAdapterId}`);
+      return;
+    }
+
     const reParse = async () => {
       setLoading(true);
       try {
-        const result = await tempoAdapter.parse(rawTraceJson, { types: filters });
+        const result = await adapter.parse(importRawData, { types: filters });
         loadImportPreview(result.logicalData, result.visualData);
       } catch (err) {
         console.error("Failed to parse trace with filters", err);
@@ -38,7 +45,7 @@ export const ImportPreviewLayout: React.FC = () => {
     };
 
     reParse();
-  }, [filters, rawTraceJson]); // intentionally omitting loadImportPreview
+  }, [filters, importRawData, importAdapterId]); // intentionally omitting loadImportPreview
 
   const handleToggleFilter = (type: string) => {
     setFilters(prev => 
@@ -48,7 +55,8 @@ export const ImportPreviewLayout: React.FC = () => {
 
   const handleCancel = () => {
     setViewMode('freeform');
-    setRawTraceJson(null);
+    setImportState(null, null);
+
     setWorkspace(null);
   };
 
@@ -60,7 +68,7 @@ export const ImportPreviewLayout: React.FC = () => {
     try {
       await cloneSharedToWorkspace(workspaceName.trim());
       setViewMode('freeform');
-      setRawTraceJson(null);
+      setImportState(null, null);
     } catch (err) {
       console.error("Failed to save workspace", err);
     } finally {
