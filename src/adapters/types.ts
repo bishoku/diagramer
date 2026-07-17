@@ -14,9 +14,18 @@ export interface FilterAST {
   rules: FilterRule[];
 }
 
+export interface NodeTypeMappingRule {
+  id: string;
+  attribute: string;
+  operator: FilterOperator;
+  value: string | number | boolean;
+  nodeType: string;
+}
+
 export interface ImportFilter {
   types?: string[]; // Legacy basic filter
   ast?: FilterAST;  // Advanced AST filter
+  nodeTypeMappings?: NodeTypeMappingRule[];
 }
 
 export interface AttributeMetadata {

@@ -3,173 +3,31 @@
     {
       "resource": {
         "attributes": [
-          {
-            "key": "service.name",
-            "value": {
-              "stringValue": "gateway-service"
-            }
-          }
+          {"key": "service.name", "value": {"stringValue": "api-gateway"}},
+          {"key": "service.version", "value": {"stringValue": "1.4.2"}},
+          {"key": "deployment.environment", "value": {"stringValue": "production"}},
+          {"key": "host.name", "value": {"stringValue": "gw-pod-a78x"}}
         ]
       },
       "scopeSpans": [
         {
-          "spans": [
-            {
-              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b1",
-              "name": "GET /orders",
-              "kind": "SPAN_KIND_SERVER",
-              "startTimeUnixNano": "1719504000000000000",
-              "endTimeUnixNano": "1719504001000000000",
-              "attributes": [
-                {
-                  "key": "http.request.method",
-                  "value": {
-                    "stringValue": "GET"
-                  }
-                }
-              ]
-            },
-            {
-              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b2",
-              "parentSpanId": "00f067aa0ba902b1",
-              "name": "HTTP GET order-service",
-              "kind": "SPAN_KIND_CLIENT",
-              "startTimeUnixNano": "1719504000100000000",
-              "endTimeUnixNano": "1719504000900000000"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "resource": {
-        "attributes": [
-          {
-            "key": "service.name",
-            "value": {
-              "stringValue": "order-service"
-            }
-          }
-        ]
-      },
-      "scopeSpans": [
-        {
-          "spans": [
-            {
-              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b3",
-              "parentSpanId": "00f067aa0ba902b2",
-              "name": "GET /orders",
-              "kind": "SPAN_KIND_SERVER",
-              "startTimeUnixNano": "1719504000150000000",
-              "endTimeUnixNano": "1719504000850000000",
-              "attributes": [
-                {
-                  "key": "http.request.method",
-                  "value": {
-                    "stringValue": "GET"
-                  }
-                }
-              ]
-            },
-            {
-              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b4",
-              "parentSpanId": "00f067aa0ba902b3",
-              "name": "Redis GET user_session",
-              "kind": "SPAN_KIND_CLIENT",
-              "startTimeUnixNano": "1719504000200000000",
-              "endTimeUnixNano": "1719504000300000000"
-            },
-            {
-              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b6",
-              "parentSpanId": "00f067aa0ba902b3",
-              "name": "SQL SELECT orders",
-              "kind": "SPAN_KIND_CLIENT",
-              "startTimeUnixNano": "1719504000350000000",
-              "endTimeUnixNano": "1719504000600000000"
-            },
-            {
-              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b8",
-              "parentSpanId": "00f067aa0ba902b3",
-              "name": "RabbitMQ publish order_event",
-              "kind": "SPAN_KIND_CLIENT",
-              "startTimeUnixNano": "1719504000650000000",
-              "endTimeUnixNano": "1719504000800000000"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "resource": {
-        "attributes": [
-          {
-            "key": "service.name",
-            "value": {
-              "stringValue": "redis-cache"
-            }
-          }
-        ]
-      },
-      "scopeSpans": [
-        {
-          "spans": [
-            {
-              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b5",
-              "parentSpanId": "00f067aa0ba902b4",
-              "name": "GET user_session",
-              "kind": "SPAN_KIND_SERVER",
-              "startTimeUnixNano": "1719504000220000000",
-              "endTimeUnixNano": "1719504000280000000",
-              "attributes": [
-                {
-                  "key": "db.system",
-                  "value": {
-                    "stringValue": "redis"
-                  }
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "resource": {
-        "attributes": [
-          {
-            "key": "service.name",
-            "value": {
-              "stringValue": "postgres-db"
-            }
-          }
-        ]
-      },
-      "scopeSpans": [
-        {
+          "scope": {"name": "io.opentelemetry.http"},
           "spans": [
             {
               "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
               "spanId": "00f067aa0ba902b7",
-              "parentSpanId": "00f067aa0ba902b6",
-              "name": "SELECT orders",
-              "kind": "SPAN_KIND_SERVER",
-              "startTimeUnixNano": "1719504000380000000",
-              "endTimeUnixNano": "1719504000580000000",
+              "parentSpanId": "",
+              "name": "POST /api/v1/checkout",
+              "kind": 2,
+              "startTimeUnixNano": "1784297700000000000",
+              "endTimeUnixNano": "1784297700850000000",
               "attributes": [
-                {
-                  "key": "db.system",
-                  "value": {
-                    "stringValue": "postgresql"
-                  }
-                }
-              ]
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "http.target", "value": {"stringValue": "/api/v1/checkout"}},
+                {"key": "http.status_code", "value": {"intValue": 200}},
+                {"key": "http.user_agent", "value": {"stringValue": "Mozilla/5.0"}}
+              ],
+              "status": {"code": 1}
             }
           ]
         }
@@ -178,25 +36,210 @@
     {
       "resource": {
         "attributes": [
-          {
-            "key": "service.name",
-            "value": {
-              "stringValue": "rabbitmq-queue"
-            }
-          }
+          {"key": "service.name", "value": {"stringValue": "order-service"}},
+          {"key": "service.version", "value": {"stringValue": "2.1.0"}},
+          {"key": "deployment.environment", "value": {"stringValue": "production"}}
         ]
       },
       "scopeSpans": [
         {
+          "scope": {"name": "io.opentelemetry.order-process"},
           "spans": [
             {
               "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-              "spanId": "00f067aa0ba902b9",
-              "parentSpanId": "00f067aa0ba902b8",
-              "name": "publish order_event",
-              "kind": "SPAN_KIND_SERVER",
-              "startTimeUnixNano": "1719504000680000000",
-              "endTimeUnixNano": "1719504000780000000"
+              "spanId": "11a123aa0ba902b7",
+              "parentSpanId": "00f067aa0ba902b7",
+              "name": "create_order",
+              "kind": 1,
+              "startTimeUnixNano": "1784297700015000000",
+              "endTimeUnixNano": "1784297700840000000",
+              "status": {"code": 1}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "22b234bb0ba902b7",
+              "parentSpanId": "11a123aa0ba902b7",
+              "name": "INSERT INTO orders",
+              "kind": 3,
+              "startTimeUnixNano": "1784297700020000000",
+              "endTimeUnixNano": "1784297700045000000",
+              "attributes": [
+                {"key": "db.system", "value": {"stringValue": "postgresql"}},
+                {"key": "db.name", "value": {"stringValue": "orders_db"}},
+                {"key": "db.statement", "value": {"stringValue": "INSERT INTO orders (id, user_id, total) VALUES ($1, $2, $3)"}},
+                {"key": "db.operation", "value": {"stringValue": "INSERT"}}
+              ],
+              "status": {"code": 1}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "33c345cc0ba902b7",
+              "parentSpanId": "11a123aa0ba902b7",
+              "name": "HTTP POST /inventory/lock",
+              "kind": 3,
+              "startTimeUnixNano": "1784297700055000000",
+              "endTimeUnixNano": "1784297700210000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "http.url", "value": {"stringValue": "http://inventory-service/inventory/lock"}},
+                {"key": "http.status_code", "value": {"intValue": 200}}
+              ],
+              "status": {"code": 1}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "66f678ff0ba902b7",
+              "parentSpanId": "11a123aa0ba902b7",
+              "name": "HTTP POST /payments/charge",
+              "kind": 3,
+              "startTimeUnixNano": "1784297700220000000",
+              "endTimeUnixNano": "1784297700580000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "http.url", "value": {"stringValue": "http://payment-service/payments/charge"}},
+                {"key": "http.status_code", "value": {"intValue": 200}}
+              ],
+              "status": {"code": 1}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "99i901ii0ba902b7",
+              "parentSpanId": "11a123aa0ba902b7",
+              "name": "UPDATE orders SET status = 'paid'",
+              "kind": 3,
+              "startTimeUnixNano": "1784297700590000000",
+              "endTimeUnixNano": "1784297700620000000",
+              "attributes": [
+                {"key": "db.system", "value": {"stringValue": "postgresql"}},
+                {"key": "db.name", "value": {"stringValue": "orders_db"}},
+                {"key": "db.statement", "value": {"stringValue": "UPDATE orders SET status = 'paid' WHERE id = $1"}},
+                {"key": "db.operation", "value": {"stringValue": "UPDATE"}}
+              ],
+              "status": {"code": 1}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "a1b234cc0ba902b7",
+              "parentSpanId": "11a123aa0ba902b7",
+              "name": "kafka.publish order_confirmed",
+              "kind": 3,
+              "startTimeUnixNano": "1784297700630000000",
+              "endTimeUnixNano": "1784297700660000000",
+              "attributes": [
+                {"key": "messaging.system", "value": {"stringValue": "kafka"}},
+                {"key": "messaging.destination", "value": {"stringValue": "order_confirmed"}},
+                {"key": "messaging.operation", "value": {"stringValue": "send"}}
+              ],
+              "status": {"code": 1}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "inventory-service"}},
+          {"key": "service.version", "value": {"stringValue": "1.1.2"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "io.opentelemetry.inventory"},
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "44d456dd0ba902b7",
+              "parentSpanId": "33c345cc0ba902b7",
+              "name": "POST /inventory/lock",
+              "kind": 2,
+              "startTimeUnixNano": "1784297700058000000",
+              "endTimeUnixNano": "1784297700205000000",
+              "status": {"code": 1}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "55e567ee0ba902b7",
+              "parentSpanId": "44d456dd0ba902b7",
+              "name": "SELECT stock FROM inventory",
+              "kind": 3,
+              "startTimeUnixNano": "1784297700070000000",
+              "endTimeUnixNano": "1784297700120000000",
+              "attributes": [
+                {"key": "db.system", "value": {"stringValue": "mysql"}},
+                {"key": "db.name", "value": {"stringValue": "warehouse"}},
+                {"key": "db.statement", "value": {"stringValue": "SELECT quantity FROM stock WHERE item_id = ? FOR UPDATE"}}
+              ],
+              "status": {"code": 1}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "payment-service"}},
+          {"key": "service.version", "value": {"stringValue": "3.0.1"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "io.opentelemetry.payment"},
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "77g789gg0ba902b7",
+              "parentSpanId": "66f678ff0ba902b7",
+              "name": "POST /payments/charge",
+              "kind": 2,
+              "startTimeUnixNano": "1784297700225000000",
+              "endTimeUnixNano": "1784297700575000000",
+              "status": {"code": 1}
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "88h890hh0ba902b7",
+              "parentSpanId": "77g789gg0ba902b7",
+              "name": "HTTP POST api.stripe.com/v3/charges",
+              "kind": 3,
+              "startTimeUnixNano": "1784297700250000000",
+              "endTimeUnixNano": "1784297700560000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "peer.service", "value": {"stringValue": "Stripe API"}}
+              ],
+              "status": {"code": 1}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "notification-service"}},
+          {"key": "service.version", "value": {"stringValue": "1.0.0"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "io.opentelemetry.notification"},
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "b2c345dd0ba902b7",
+              "parentSpanId": "a1b234cc0ba902b7",
+              "name": "kafka.consume order_confirmed",
+              "kind": 4,
+              "startTimeUnixNano": "1784297700680000000",
+              "endTimeUnixNano": "1784297700790000000",
+              "attributes": [
+                {"key": "messaging.system", "value": {"stringValue": "kafka"}},
+                {"key": "messaging.destination", "value": {"stringValue": "order_confirmed"}},
+                {"key": "messaging.operation", "value": {"stringValue": "process"}}
+              ],
+              "status": {"code": 1}
             }
           ]
         }

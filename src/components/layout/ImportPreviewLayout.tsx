@@ -5,8 +5,10 @@ import { TimelinePanel } from './TimelinePanel';
 import { X, Save, Activity } from 'lucide-react';
 import { availableAdapters } from '../../adapters';
 
-import { FilterAST, AttributeMetadata } from '../../adapters/types';
-import { TraceFilterBuilder } from '../filters/TraceFilterBuilder';
+import { FilterAST, AttributeMetadata, NodeTypeMappingRule } from '../../adapters/types';
+import { ActiveFiltersBar } from '../filters/ActiveFiltersBar';
+import { AttributeSidebar } from '../filters/AttributeSidebar';
+import { NodeTypeMapper } from '../filters/NodeTypeMapper';
 
 export const ImportPreviewLayout: React.FC = () => {
   const setWorkspace = useAppStore(s => s.setWorkspace);
@@ -22,6 +24,10 @@ export const ImportPreviewLayout: React.FC = () => {
 
   const [filterAst, setFilterAst] = useState<FilterAST | null>(null);
   const [attributes, setAttributes] = useState<AttributeMetadata[]>([]);
+  const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
+  const [nodeTypeMappings, setNodeTypeMappings] = useState<NodeTypeMappingRule[]>([]);
+  const [activeTab, setActiveTab] = useState<'filters' | 'mapping'>('filters');
+  
   const [loading, setLoading] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
@@ -90,7 +96,10 @@ export const ImportPreviewLayout: React.FC = () => {
     const reParse = async () => {
       setLoading(true);
       try {
-        const result = await adapter.parse(importRawData, { ast: filterAst || undefined });
+        const result = await adapter.parse(importRawData, { 
+          ast: filterAst || undefined,
+          nodeTypeMappings: nodeTypeMappings.length > 0 ? nodeTypeMappings : undefined
+        });
         loadImportPreview(result.logicalData, result.visualData);
       } catch (err) {
         console.error("Failed to parse trace with filters", err);
@@ -99,13 +108,12 @@ export const ImportPreviewLayout: React.FC = () => {
       }
     };
 
-    // Add a tiny debounce to prevent rapid re-parsing when typing in code mode
     const timeout = setTimeout(() => {
       reParse();
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [filterAst, importRawData, importAdapterId]); // intentionally omitting loadImportPreview
+  }, [filterAst, nodeTypeMappings, importRawData, importAdapterId]); // intentionally omitting loadImportPreview
 
   const handleCancel = () => {
     setViewMode('freeform');
@@ -159,12 +167,53 @@ export const ImportPreviewLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <TraceFilterBuilder 
-        attributes={attributes} 
-        onChange={(ast) => setFilterAst(ast)} 
-        initialAst={filterAst}
-      />
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar */}
+        <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
+          <div className="flex border-b border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => setActiveTab('filters')}
+              className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${activeTab === 'filters' ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              Filters
+            </button>
+            <button
+              onClick={() => setActiveTab('mapping')}
+              className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${activeTab === 'mapping' ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              Node Types
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden relative">
+            {activeTab === 'filters' ? (
+              <AttributeSidebar
+                attributes={attributes}
+                selectedAttributes={selectedAttributes}
+                onToggleAttribute={(key) => {
+                  setSelectedAttributes(prev => 
+                    prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+                  );
+                }}
+              />
+            ) : (
+              <NodeTypeMapper
+                attributes={attributes}
+                mappings={nodeTypeMappings}
+                onChange={setNodeTypeMappings}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Filter Bar */}
+          <ActiveFiltersBar
+            attributes={attributes}
+            selectedAttributes={selectedAttributes}
+            onChange={setFilterAst}
+            onRemoveAttribute={(key) => setSelectedAttributes(prev => prev.filter(k => k !== key))}
+          />
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -195,6 +244,8 @@ export const ImportPreviewLayout: React.FC = () => {
           >
             <TimelinePanel />
           </div>
+          </div>
+        </div>
       </div>
 
       {/* Save Modal */}

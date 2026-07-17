@@ -30,6 +30,7 @@ export const tempoAdapter: DiagramAdapter = {
       startTime: number;
       endTime: number;
       attributes: Record<string, string>;
+      resourceAttributes: Record<string, string>;
     }
 
     const spans: NormalizedSpan[] = [];
@@ -37,10 +38,16 @@ export const tempoAdapter: DiagramAdapter = {
     const extractSpans = (resourceSpans: any[]) => {
       for (const rs of resourceSpans) {
         let serviceName = 'unknown-service';
+        const resourceAttributes: Record<string, string> = {};
+        
         if (rs.resource?.attributes) {
-          const srvAttr = rs.resource.attributes.find((a: any) => a.key === 'service.name');
-          if (srvAttr?.value?.stringValue) {
-            serviceName = srvAttr.value.stringValue;
+          for (const attr of rs.resource.attributes) {
+            if (attr.value?.stringValue !== undefined) resourceAttributes[attr.key] = attr.value.stringValue;
+            if (attr.value?.intValue !== undefined) resourceAttributes[attr.key] = attr.value.intValue;
+            if (attr.value?.boolValue !== undefined) resourceAttributes[attr.key] = String(attr.value.boolValue);
+          }
+          if (resourceAttributes['service.name']) {
+            serviceName = resourceAttributes['service.name'];
           }
         }
 
@@ -66,24 +73,13 @@ export const tempoAdapter: DiagramAdapter = {
                   startTime: parseInt(span.startTimeUnixNano || '0', 10),
                   endTime: parseInt(span.endTimeUnixNano || '0', 10),
                   attributes,
+                  resourceAttributes,
                 });
               }
             }
           }
         }
       }
-    };
-
-    // Helper: extract service name from resource attributes
-    const extractServiceName = (resource: any): string => {
-      if (!resource?.attributes) return 'unknown-service';
-      const attrs = resource.attributes;
-      // Attributes can be an array of {key, value} or a plain object
-      if (Array.isArray(attrs)) {
-        const found = attrs.find((a: any) => a.key === 'service.name');
-        return found?.value?.stringValue ?? found?.value?.Value?.StringValue ?? 'unknown-service';
-      }
-      return attrs['service.name'] ?? 'unknown-service';
     };
 
     if (data.batches) {
@@ -93,8 +89,25 @@ export const tempoAdapter: DiagramAdapter = {
           extractSpans(batch.resourceSpans);
         } else if (batch.resource !== undefined) {
           // Grafana Tempo native export format:
-          // batches[].resource + batches[].instrumentationLibrarySpans[] or scopeSpans[]
-          const serviceName = extractServiceName(batch.resource);
+          const resourceAttributes: Record<string, string> = {};
+          if (batch.resource.attributes) {
+            const attrs = batch.resource.attributes;
+            if (Array.isArray(attrs)) {
+              for (const attr of attrs) {
+                if (attr.value?.stringValue !== undefined) resourceAttributes[attr.key] = attr.value.stringValue;
+                else if (attr.value?.intValue !== undefined) resourceAttributes[attr.key] = attr.value.intValue;
+                else if (attr.value?.Value?.StringValue !== undefined) resourceAttributes[attr.key] = attr.value.Value.StringValue;
+                else if (attr.value?.Value?.IntValue !== undefined) resourceAttributes[attr.key] = attr.value.Value.IntValue;
+                else if (attr.value?.boolValue !== undefined) resourceAttributes[attr.key] = String(attr.value.boolValue);
+              }
+            } else {
+              for (const key of Object.keys(attrs)) {
+                resourceAttributes[key] = String(attrs[key]);
+              }
+            }
+          }
+          const serviceName = resourceAttributes['service.name'] || 'unknown-service';
+          
           const spanGroups = batch.instrumentationLibrarySpans ?? batch.scopeSpans ?? [];
           for (const group of spanGroups) {
             for (const span of (group.spans ?? [])) {
@@ -117,6 +130,7 @@ export const tempoAdapter: DiagramAdapter = {
                 startTime: parseInt(span.startTimeUnixNano ?? span.start_time_unix_nano ?? '0', 10),
                 endTime: parseInt(span.endTimeUnixNano ?? span.end_time_unix_nano ?? '0', 10),
                 attributes,
+                resourceAttributes,
               });
             }
           }
@@ -150,12 +164,10 @@ export const tempoAdapter: DiagramAdapter = {
       
       const activeServices = new Set<string>();
       spans.forEach(span => {
-        // Evaluate the span attributes (combining with serviceName for convenience if they want to filter by serviceName)
+        // User requested to ONLY use resource attributes for filtering
         const combinedAttributes = {
-          ...span.attributes,
-          'service.name': span.serviceName,
-          'span.name': span.name,
-          'span.duration': Math.max(100, Math.floor((span.endTime - span.startTime) / 1000000))
+          ...span.resourceAttributes,
+          'service.name': span.serviceName
         };
         
         if (evaluateFilterAST(combinedAttributes, filters.ast)) {
@@ -202,30 +214,59 @@ export const tempoAdapter: DiagramAdapter = {
       
       // Infer node type by checking spans belonging to this service
       const serviceSpans = filteredSpans.filter(s => s.serviceName === serviceName);
-      const isDb = serviceSpans.some(s => 
-        Object.keys(s.attributes).some(k => k.startsWith('db.'))
-      ) || serviceName.toLowerCase().includes('db') || serviceName.toLowerCase().includes('database') || serviceName.toLowerCase().includes('redis');
+      
+      let matchedCustomRule = false;
+      if (filters?.nodeTypeMappings && filters.nodeTypeMappings.length > 0) {
+        // Evaluate nodeTypeMappings against resourceAttributes of this service
+        const resourceAttrs = serviceSpans[0]?.resourceAttributes || {};
+        
+        for (const rule of filters.nodeTypeMappings) {
+           const attrValue = resourceAttrs[rule.attribute];
+           if (attrValue !== undefined) {
+             let isMatch = false;
+             const stringVal = String(attrValue).toLowerCase();
+             const targetVal = String(rule.value).toLowerCase();
+             
+             if (rule.operator === '=') isMatch = stringVal === targetVal;
+             else if (rule.operator === '!=') isMatch = stringVal !== targetVal;
+             else if (rule.operator === 'contains') isMatch = stringVal.includes(targetVal);
+             else if (rule.operator === 'not_contains') isMatch = !stringVal.includes(targetVal);
+             
+             if (isMatch) {
+               nodeType = rule.nodeType;
+               matchedCustomRule = true;
+               break; // first match wins
+             }
+           }
+        }
+      }
 
-      if (isDb) {
-        nodeType = 'database';
-      } else if (
-        serviceName.toLowerCase().includes('queue') || 
-        serviceName.toLowerCase().includes('rabbitmq') || 
-        serviceName.toLowerCase().includes('kafka') || 
-        serviceSpans.some(s => s.name.toLowerCase().includes('queue') || s.name.toLowerCase().includes('kafka') || s.name.toLowerCase().includes('publish') || s.name.toLowerCase().includes('consume'))
-      ) {
-        nodeType = 'queue';
-      } else if (
-        serviceName.toLowerCase().includes('gateway') || 
-        serviceSpans.some(s => s.name.toLowerCase().includes('gateway'))
-      ) {
-        nodeType = 'gateway';
-      } else if (
-        serviceSpans.some(s => 
-          Object.keys(s.attributes).some(k => k.startsWith('http.') || k.startsWith('rpc.'))
-        )
-      ) {
-        nodeType = 'server';
+      if (!matchedCustomRule) {
+        const isDb = serviceSpans.some(s => 
+          Object.keys(s.attributes).some(k => k.startsWith('db.'))
+        ) || serviceName.toLowerCase().includes('db') || serviceName.toLowerCase().includes('database') || serviceName.toLowerCase().includes('redis');
+
+        if (isDb) {
+          nodeType = 'database';
+        } else if (
+          serviceName.toLowerCase().includes('queue') || 
+          serviceName.toLowerCase().includes('rabbitmq') || 
+          serviceName.toLowerCase().includes('kafka') || 
+          serviceSpans.some(s => s.name.toLowerCase().includes('queue') || s.name.toLowerCase().includes('kafka') || s.name.toLowerCase().includes('publish') || s.name.toLowerCase().includes('consume'))
+        ) {
+          nodeType = 'queue';
+        } else if (
+          serviceName.toLowerCase().includes('gateway') || 
+          serviceSpans.some(s => s.name.toLowerCase().includes('gateway'))
+        ) {
+          nodeType = 'gateway';
+        } else if (
+          serviceSpans.some(s => 
+            Object.keys(s.attributes).some(k => k.startsWith('http.') || k.startsWith('rpc.'))
+          )
+        ) {
+          nodeType = 'server';
+        }
       }
 
       return {
@@ -372,15 +413,6 @@ export const tempoAdapter: DiagramAdapter = {
         if (rs.resource?.attributes) {
           processAttributes(rs.resource.attributes);
         }
-        if (rs.scopeSpans) {
-          for (const ss of rs.scopeSpans) {
-            if (ss.spans) {
-              for (const span of ss.spans) {
-                if (span.attributes) processAttributes(span.attributes);
-              }
-            }
-          }
-        }
       }
     };
 
@@ -390,12 +422,6 @@ export const tempoAdapter: DiagramAdapter = {
           extractFromSpans(batch.resourceSpans);
         } else if (batch.resource !== undefined) {
           if (batch.resource.attributes) processAttributes(batch.resource.attributes);
-          const spanGroups = batch.instrumentationLibrarySpans ?? batch.scopeSpans ?? [];
-          for (const group of spanGroups) {
-            for (const span of (group.spans ?? [])) {
-              if (span.attributes) processAttributes(span.attributes);
-            }
-          }
         }
       }
     } else if (data.resourceSpans) {
@@ -404,10 +430,8 @@ export const tempoAdapter: DiagramAdapter = {
       extractFromSpans(data);
     }
 
-    // Add implicit standard attributes
+    // Add implicit standard attributes for resources
     recordAttribute('service.name', 'string');
-    recordAttribute('span.name', 'string');
-    recordAttribute('span.duration', 'number');
 
     const attributes = Array.from(attributeTypes.entries()).map(([key, type]) => ({
       key,
