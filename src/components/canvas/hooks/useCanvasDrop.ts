@@ -9,6 +9,7 @@ export const useCanvasDrop = (
   setRfNodes: React.Dispatch<React.SetStateAction<Node[]>>
 ) => {
   const addNode = useAppStore((s) => s.addNode);
+  const addStickyNote = useAppStore((s) => s.addStickyNote);
   const cancelDrag = useAppStore((s) => s.cancelDrag);
 
   useEffect(() => {
@@ -24,8 +25,9 @@ export const useCanvasDrop = (
       const nodeId = `node-${type}-${Date.now()}`;
 
       const isSection = type === 'section';
-      const width = isSection ? 400 : 224;
-      const height = isSection ? 300 : 52;
+      const isStickyNote = type === 'sticky_note';
+      const width = isSection ? 400 : isStickyNote ? 220 : 224;
+      const height = isSection ? 300 : isStickyNote ? 160 : 52;
 
       const x = position.x - width / 2;
       const y = position.y - height / 2;
@@ -46,7 +48,38 @@ export const useCanvasDrop = (
       const newNode: Node = toRfNode({ id: nodeId, type, name: uniqueName }, visualNode);
 
       setRfNodes((nds) => isSection ? [newNode, ...nds] : [...nds, newNode]);
-      addNode({ id: nodeId, type, name: uniqueName }, visualNode);
+      
+      const logicalNode = { id: nodeId, type, name: uniqueName, properties: { _visualOnly: isStickyNote } };
+      
+      if (isStickyNote) {
+        // Find a safe start time (currentTime or 0)
+        const currentTime = useAppStore.getState().currentTime;
+        const startTime = currentTime;
+        const endTime = startTime + 5000; // Default 5 seconds duration
+        
+        const annotation = {
+          id: nodeId,
+          header: uniqueName,
+          body: 'Double click to edit note...',
+          style: {
+            backgroundColor: '#fef08a', // yellow-200
+            borderColor: '#eab308', // yellow-500
+            textColor: '#422006', // yellow-950
+            fontFamily: 'Inter',
+            fontSize: 14,
+            borderRadius: 8,
+            opacity: 1,
+            shadow: true
+          },
+          startTime,
+          endTime,
+          alwaysVisible: false
+        };
+        addStickyNote(logicalNode, visualNode, annotation);
+      } else {
+        addNode(logicalNode, visualNode);
+      }
+      
       cancelDrag();
     };
 

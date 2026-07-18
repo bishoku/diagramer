@@ -6,7 +6,7 @@ import {
   PanelLeft, PanelRight, PanelBottom,
   Undo, Redo, FileDown, Copy, ChevronDown, Save, Loader2,
   ListOrdered, LayoutDashboard, Grid,
-  Cloud, CloudUpload, CheckCircle2, AlertCircle
+  Cloud, CloudUpload, CheckCircle2, AlertCircle, Maximize, Minimize
 } from 'lucide-react';
 import { translations } from '../../i18n/translations';
 import { generateStandaloneHtml } from '../../utils/exportTemplate';
@@ -70,6 +70,29 @@ export const TopBar: React.FC = () => {
   // AI Copy Modal State
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiText, setAiText] = useState('');
+
+  // Fullscreen State
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen().catch(err => {
+        console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    }
+  };
 
   const handleBackToWelcome = () => {
     setWorkspace(null);
@@ -337,6 +360,14 @@ export const TopBar: React.FC = () => {
             title={language === 'tr' ? 'Sağ panel' : 'Right panel'}
           >
             <PanelRight className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+          <button
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded-md cursor-pointer transition-colors text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+            title={language === 'tr' ? 'Tam Ekran' : 'Fullscreen'}
+          >
+            {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
           </button>
         </div>
 

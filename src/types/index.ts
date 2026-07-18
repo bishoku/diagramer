@@ -102,6 +102,30 @@ export interface TimelineTiming {
   };
 }
 
+// --- STICKY NOTE (Visual Annotation Layer) ---
+export interface StickyNoteStyle {
+  backgroundColor: string;    // Not arka plan rengi
+  borderColor: string;        // Kenarlık rengi
+  headerColor?: string;       // Header arka plan rengi
+  textColor: string;          // Yazı rengi
+  fontFamily: string;         // 'Inter', 'Roboto Mono', vb.
+  fontSize: number;           // px
+  borderRadius: number;       // px
+  opacity: number;            // 0-1
+  shadow?: boolean;           // Gölge efekti
+}
+
+export interface StickyNote {
+  id: string;                 // 'note-{timestamp}'
+  header: string;             // Header başlığı
+  body: string;               // Body içeriği (markdown veya plain text)
+  style: StickyNoteStyle;     // Stil yapılandırması
+  // Timeline visibility
+  startTime: number;          // Görünür olduğu başlangıç zamanı (ms)
+  endTime: number;            // Görünür olduğu bitiş zamanı (ms)
+  alwaysVisible?: boolean;    // True ise timeline'dan bağımsız her zaman görünür
+}
+
 export interface VisualDiagram {
   canvas: {
     zoom: number;
@@ -112,6 +136,7 @@ export interface VisualDiagram {
   layoutNodes: Record<string, VisualNode>;      // Quick record access by Node ID
   layoutEdges: Record<string, VisualEdge>;      // NEW: Visual edge data by Edge ID
   timelines: Record<string, TimelineTiming>;    // Visual details & timings of animation sequences
+  annotations?: Record<string, StickyNote>;     // Visual annotations (e.g. sticky notes)
 }
 
 export interface WorkspaceMeta {
@@ -289,6 +314,11 @@ export interface AppState {
   cloneNode: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeDimensions: (id: string, width: number, height: number) => void;
+  
+  // Sticky Note Actions
+  addStickyNote: (logical: LogicalNode, visual: VisualNode, annotation: StickyNote) => void;
+  updateStickyNote: (id: string, updates: Partial<StickyNote>) => void;
+  deleteStickyNote: (id: string) => void;
   addEdge: (logical: LogicalEdge, visual: VisualEdge) => void;
   reconnectEdge: (
     edgeId: string,

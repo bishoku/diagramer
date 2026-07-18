@@ -6,19 +6,34 @@ import { useAppStore } from '../../store/useAppStore';
 
 import { DiagramCanvas } from '../canvas/DiagramCanvas';
 import { TimelinePanel } from './TimelinePanel';
+import { Minimize } from 'lucide-react';
 
 const SequenceDiagramCanvas = lazy(() => import('../sequence/SequenceDiagramCanvas').then(m => ({ default: m.SequenceDiagramCanvas })));
 
 export const MainLayout: React.FC = () => {
   const timelineHeight = useAppStore((s) => s.timelineHeight);
-  const timelineOpen = useAppStore((s) => s.timelineOpen);
+  const _timelineOpen = useAppStore((s) => s.timelineOpen);
   const setTimelineHeight = useAppStore((s) => s.setTimelineHeight);
   const language = useAppStore((s) => s.language);
   const viewMode = useAppStore((s) => s.viewMode);
-  const leftSidebarOpen = useAppStore((s) => s.leftSidebarOpen);
-  const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen);
+  const _leftSidebarOpen = useAppStore((s) => s.leftSidebarOpen);
+  const _rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen);
   const [isResizing, setIsResizing] = useState(false);
   const resizerRef = useRef<HTMLDivElement>(null);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const timelineOpen = isFullscreen ? false : _timelineOpen;
+  const leftSidebarOpen = isFullscreen ? false : _leftSidebarOpen;
+  const rightSidebarOpen = isFullscreen ? false : _rightSidebarOpen;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -28,7 +43,6 @@ export const MainLayout: React.FC = () => {
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
     const newHeight = window.innerHeight - e.clientY;
-    // Clamp height between 140px and 70% of screen height
     const clampedHeight = Math.min(Math.max(140, newHeight), window.innerHeight * 0.7);
     setTimelineHeight(clampedHeight);
   }, [isResizing, setTimelineHeight]);
@@ -55,7 +69,18 @@ export const MainLayout: React.FC = () => {
     <div className="h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden select-none transition-colors duration-300">
       
       {/* Top Bar */}
-      <TopBar />
+      {!isFullscreen && <TopBar />}
+
+      {/* Floating Exit Fullscreen Button */}
+      {isFullscreen && (
+        <button
+          onClick={() => document.exitFullscreen()}
+          className="absolute top-4 right-4 z-50 p-2 bg-slate-900/50 hover:bg-slate-900/80 text-white rounded-lg shadow-lg transition-all backdrop-blur-sm"
+          title={language === 'tr' ? 'Tam Ekrandan Çık' : 'Exit Fullscreen'}
+        >
+          <Minimize className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Main Work Area */}
       <div className="flex-1 flex overflow-hidden relative">
@@ -96,7 +121,7 @@ export const MainLayout: React.FC = () => {
             style={{ height: timelineOpen ? timelineHeight : 'auto' }}
             className="border-t border-slate-200 dark:border-slate-800 z-10 shrink-0 select-none overflow-hidden"
           >
-            <TimelinePanel />
+            <TimelinePanel forceCollapsed={isFullscreen} />
           </div>
           
         </main>

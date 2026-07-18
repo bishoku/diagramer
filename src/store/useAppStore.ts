@@ -59,7 +59,7 @@ export const useAppStore = create<AppState>()((set, get, store) => {
 
     // Phase 2 Canvas Initial State
     logicalData: { schemaVersion: 1, nodes: [], edges: [], sequences: [] },
-    visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, layoutEdges: {}, timelines: {} },
+    visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, layoutEdges: {}, timelines: {}, annotations: {} },
     schedules: {},
     
     // Google Drive Sync Initial State

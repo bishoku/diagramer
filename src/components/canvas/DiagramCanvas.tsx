@@ -21,6 +21,7 @@ import {
 import { BaseNode } from './BaseNode';
 import { AnimatedEdge } from './AnimatedEdge';
 import { SectionNode } from './SectionNode';
+import { StickyNoteNode } from './StickyNoteNode';
 import { useAppStore } from '../../store/useAppStore';
 import { translations } from '../../i18n/translations';
 import { Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -28,6 +29,7 @@ import { Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ContextMenu } from './ContextMenu';
 import { ClearCanvasModal } from './ClearCanvasModal';
 import { DragGhost } from './DragGhost';
+import { StickyNoteEditorModal } from './StickyNoteEditorModal';
 import { getDefaultHandles } from '../../utils/portUtils';
 
 import {
@@ -37,7 +39,7 @@ import {
   useSectionDrag,
 } from './hooks';
 
-const nodeTypes = { customNode: BaseNode, sectionNode: SectionNode };
+const nodeTypes = { customNode: BaseNode, sectionNode: SectionNode, stickyNoteNode: StickyNoteNode };
 const edgeTypes = { customEdge: AnimatedEdge };
 
 function isColorDark(color: string): boolean {
@@ -327,7 +329,15 @@ const FlowWrapper: React.FC = () => {
     const logicalData = useAppStore.getState().logicalData;
     const ln = logicalData.nodes.find(n => n.id === node.id);
     const vn = visualDataRef.current.layoutNodes[node.id];
+    
     if (ln) {
+      if (ln.type === 'sticky_note') {
+        clearActiveProperties();
+        const ev = new CustomEvent('canvas:editStickyNote', { detail: { id: node.id } });
+        window.dispatchEvent(ev);
+        return;
+      }
+      
       setActiveNodeProperties({
         id: node.id,
         name: ln.name,
@@ -342,7 +352,7 @@ const FlowWrapper: React.FC = () => {
       setActiveEdgeProperties(null);
       openRightSidebar();
     }
-  }, [closeMenu, visualDataRef, setActiveNodeProperties, setActiveEdgeProperties, openRightSidebar, isPlaying]);
+  }, [closeMenu, visualDataRef, setActiveNodeProperties, setActiveEdgeProperties, openRightSidebar, clearActiveProperties, isPlaying]);
 
   const handleEdgeClick = useCallback((e: React.MouseEvent, edge: Edge) => {
     if (isPlaying) return;
@@ -622,7 +632,7 @@ const FlowWrapper: React.FC = () => {
         dragStartRef.current = { nodeId: params.nodeId, handleId: params.handleId };
       }
     },
-    []
+    [setActiveNodeProperties, setActiveEdgeProperties]
   );
 
   const onConnectEnd = useCallback(() => {
@@ -633,7 +643,16 @@ const FlowWrapper: React.FC = () => {
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (isPlaying) return;
       if (!connection.source || !connection.target) return;
+
+      const logicalNodes = useAppStore.getState().logicalData.nodes;
+      const sourceNode = logicalNodes.find(n => n.id === connection.source);
+      const targetNode = logicalNodes.find(n => n.id === connection.target);
+      
+      if (sourceNode?.type === 'sticky_note' || targetNode?.type === 'sticky_note') {
+        return; // Prevent connecting to/from sticky notes
+      }
       
       const logicalData = useAppStore.getState().logicalData;
       const nextStepNum = logicalData.sequences.length > 0 
@@ -1068,6 +1087,9 @@ const FlowWrapper: React.FC = () => {
         onDelete={handleDeleteElement}
         onClone={handleCloneElement}
       />
+
+      {/* Sticky Note Editor Modal */}
+      <StickyNoteEditorModal />
 
       {/* Simulation active attributes popover overlay */}
       <div className="absolute top-4 right-4 z-40 font-sans select-none animate-in fade-in slide-in-from-top-4 duration-300">

@@ -966,6 +966,57 @@ export const generateStandaloneHtml = (
 
       // Render regular nodes (using absolute positions for child nodes)
       initialData.logicalData.nodes.filter(n => n.type !== 'section').forEach(node => {
+        const isStickyNote = node.type === 'sticky_note';
+        
+        if (isStickyNote) {
+          const annotation = initialData.visualData.annotations?.[node.id];
+          const visual = initialData.visualData.layoutNodes[node.id];
+          if (!annotation || !visual) return;
+          
+          const card = document.createElement('div');
+          card.id = 'node-card-' + node.id;
+          card.className = 'sticky-note';
+          card.style.position = 'absolute';
+          card.style.left = visual.x + 'px';
+          card.style.top = visual.y + 'px';
+          card.style.width = (visual.width || 220) + 'px';
+          card.style.height = (visual.height || 160) + 'px';
+          card.style.backgroundColor = annotation.style.backgroundColor;
+          card.style.borderColor = annotation.style.borderColor;
+          card.style.color = annotation.style.textColor;
+          card.style.fontFamily = annotation.style.fontFamily || 'Inter, sans-serif';
+          card.style.fontSize = annotation.style.fontSize + 'px';
+          card.style.borderRadius = annotation.style.borderRadius + 'px';
+          card.style.borderWidth = '2px';
+          card.style.borderStyle = 'solid';
+          card.style.overflow = 'hidden';
+          card.style.display = 'flex';
+          card.style.flexDirection = 'column';
+          card.style.opacity = '1';
+          card.style.transition = 'opacity 0.2s';
+          if (annotation.style.shadow) card.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+          
+          let innerHTML = '';
+          if (annotation.header) {
+            innerHTML += \`<div style="padding: 8px 12px; font-weight: 600; border-bottom: 1px solid \${annotation.style.borderColor}; background-color: rgba(0,0,0,0.05);">\${annotation.header}</div>\`;
+          }
+          
+          // Basic markdown parsing
+          const parsedBody = annotation.body
+            .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
+            .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
+            .split('\\n').map(line => line.startsWith('- ') ? '<li>' + line.substring(2) + '</li>' : '<div>' + line + '</div>').join('');
+            
+          innerHTML += \`<div style="flex: 1; padding: 12px; overflow-y: auto;">\${parsedBody}</div>\`;
+          
+          // Folded corner
+          innerHTML += \`<div style="position: absolute; bottom: 0; right: 0; width: 16px; height: 16px; background: linear-gradient(to top left, transparent 50%, rgba(0,0,0,0.1) 50%); border-top-left-radius: 4px;"></div>\`;
+          
+          card.innerHTML = innerHTML;
+          nodesLayer.appendChild(card);
+          return;
+        }
+
         const absPos = getAbsolutePos(node.id);
         const visual = initialData.visualData.layoutNodes[node.id] || {};
         const customTemplate = initialData.libraryComponents.find(c => c.componentId === node.type);

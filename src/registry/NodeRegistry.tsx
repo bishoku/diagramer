@@ -1,7 +1,7 @@
 import React from 'react';
-import { Laptop, Network, Server, Database, Zap, Cpu, SquareDashedBottom, Route, Rows, Shield } from 'lucide-react';
+import { Laptop, Network, Server, Database, Zap, Cpu, SquareDashedBottom, Route, Rows, Shield, StickyNote } from 'lucide-react';
 
-export type ComponentCategory = 'standard' | 'section' | 'custom';
+export type ComponentCategory = 'standard' | 'section' | 'custom' | 'annotation';
 
 export interface NodeDefinition {
   type: string;
@@ -85,6 +85,14 @@ export const NodeRegistry: Record<string, NodeDefinition> = {
     icon: <SquareDashedBottom className="w-4 h-4" />,
     colorClass: 'text-slate-500',
     category: 'section'
+  },
+  sticky_note: {
+    type: 'sticky_note',
+    name: { en: 'Sticky Note', tr: 'Yapışkan Not' },
+    defaultName: 'Note',
+    icon: <StickyNote className="w-4 h-4" />,
+    colorClass: 'text-yellow-500',
+    category: 'annotation'
   }
 };
 

@@ -11,6 +11,7 @@ import { useTimingBarDrag } from '../timeline/useTimingBarDrag';
 import { TimelineRuler } from '../timeline/TimelineRuler';
 import { TimelineGrid } from '../timeline/TimelineGrid';
 import { ScrubLine } from '../timeline/ScrubLine';
+import { useAnnotationBarDrag } from '../timeline/useAnnotationBarDrag';
 
 const TimeReadout: React.FC<{ maxTime: number }> = ({ maxTime }) => {
   const currentTime = useAppStore((state) => state.currentTime);
@@ -40,7 +41,7 @@ const CollapsedPlaybackSlider: React.FC<{ maxTime: number }> = ({ maxTime }) => 
   );
 };
 
-export const TimelinePanel: React.FC = () => {
+export const TimelinePanel: React.FC<{ forceCollapsed?: boolean }> = ({ forceCollapsed }) => {
   // Selective Zustand selectors to completely eliminate playback re-renders
   const logicalData = useAppStore((s) => s.logicalData);
   const visualData = useAppStore((s) => s.visualData);
@@ -48,7 +49,8 @@ export const TimelinePanel: React.FC = () => {
   const selectedSequenceId = useAppStore((s) => s.selectedSequenceId);
   const language = useAppStore((s) => s.language);
   const t = translations[language];
-  const timelineOpen = useAppStore((s: any) => s.timelineOpen);
+  const _timelineOpen = useAppStore((s: any) => s.timelineOpen);
+  const timelineOpen = forceCollapsed ? false : _timelineOpen;
   const schedules = useAppStore((s) => s.schedules);
   const maxSteps = useAppStore((s) => s.maxSteps);
   const loopPlayback = useAppStore((s) => s.loopPlayback);
@@ -117,6 +119,12 @@ export const TimelinePanel: React.FC = () => {
     updateSequenceTiming,
     pxPerMs
   );
+
+  const { 
+    handleBarMouseDown: handleAnnotationBarMouseDown, 
+    handleResizeLeftMouseDown, 
+    handleResizeRightMouseDown 
+  } = useAnnotationBarDrag(pxPerMs);
 
   // Playback Animation Loop (Updates playhead directly in the store)
   const requestRef = useRef<number | null>(null);
@@ -315,7 +323,7 @@ export const TimelinePanel: React.FC = () => {
                         if (isPlaying) return;
                         setSelectedSequenceId(seq.id);
                       }}
-                      className={`min-h-[48px] py-1.5 px-3 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between transition-colors duration-150 group ${
+                      className={`h-16 overflow-hidden py-1.5 px-3 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between transition-colors duration-150 group ${
                         isPlaying ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
                       } ${
                         isSelected 
@@ -395,6 +403,18 @@ export const TimelinePanel: React.FC = () => {
                   );
                 })
               )}
+              
+              {/* Annotations List */}
+              {Object.entries(visualData.annotations || {}).map(([id, note]) => (
+                <div key={`left-ann-${id}`} className="h-16 border-b border-slate-200/50 dark:border-slate-800/20 px-3 flex items-center justify-between group bg-amber-50/10 dark:bg-amber-900/10">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="w-1.5 h-6 rounded-full shrink-0" style={{ backgroundColor: note.style.backgroundColor }} />
+                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
+                      {note.header || 'Sticky Note'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
             
             {/* Right Side: Track Grid area - Dynamic auto-scale width */}
@@ -425,7 +445,7 @@ export const TimelinePanel: React.FC = () => {
                     return (
                       <div 
                         key={seq.id} 
-                        className="h-12 border-b border-slate-200/50 dark:border-slate-800/20 relative flex items-center w-full"
+                        className="h-16 border-b border-slate-200/50 dark:border-slate-800/20 relative flex items-center w-full"
                       >
                         {/* Interactive Drag Bar */}
                         <div
@@ -453,13 +473,54 @@ export const TimelinePanel: React.FC = () => {
                           </span>
 
                           {/* Resize handle on right */}
-                          <div
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              handleResizeMouseDown(e, seq.id, timing.delay ?? 0, timing.duration ?? 1000);
-                            }}
-                            className="w-1.5 h-full hover:bg-white/20 cursor-ew-resize rounded-r-lg"
-                          />
+                          {!seq.isAsync && (
+                            <div 
+                              className="absolute -right-1 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-white/30 rounded-r transition-colors"
+                              onMouseDown={(e) => {
+                                setSelectedSequenceId(seq.id);
+                                handleResizeMouseDown(e, seq.id, timing.delay ?? 0, timing.duration ?? 1000);
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Annotation Tracks */}
+                  {Object.entries(visualData.annotations || {}).map(([id, note]) => {
+                    const left = note.startTime * pxPerMs;
+                    const width = (note.endTime - note.startTime) * pxPerMs;
+
+                    return (
+                      <div 
+                        key={`track-ann-${id}`} 
+                        className="h-16 border-b border-slate-200/50 dark:border-slate-800/20 relative flex items-center w-full"
+                      >
+                        <div
+                          onMouseDown={(e) => handleAnnotationBarMouseDown(e, id, note.startTime, note.endTime)}
+                          className="h-6 rounded-lg absolute cursor-grab active:cursor-grabbing transition-shadow flex items-center px-2 group border shadow-sm"
+                          style={{
+                            left,
+                            width,
+                            backgroundColor: note.style.backgroundColor,
+                            borderColor: note.style.borderColor,
+                            color: note.style.textColor,
+                            opacity: note.alwaysVisible ? 0.5 : 1
+                          }}
+                        >
+                          {!note.alwaysVisible && (
+                            <>
+                              <div 
+                                className="absolute -left-1 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-black/10 rounded-l transition-colors"
+                                onMouseDown={(e) => handleResizeLeftMouseDown(e, id, note.startTime, note.endTime)}
+                              />
+                              <div 
+                                className="absolute -right-1 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-black/10 rounded-r transition-colors"
+                                onMouseDown={(e) => handleResizeRightMouseDown(e, id, note.startTime, note.endTime)}
+                              />
+                            </>
+                          )}
                         </div>
                       </div>
                     );

@@ -11,6 +11,9 @@ export interface CanvasSlice {
   cloneNode: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeDimensions: (id: string, width: number, height: number) => void;
+  addStickyNote: (logical: LogicalNode, visual: VisualNode, annotation: StickyNote) => void;
+  updateStickyNote: (id: string, updates: Partial<StickyNote>) => void;
+  deleteStickyNote: (id: string) => void;
   addEdge: (logical: LogicalEdge, visual: VisualEdge) => void;
   reconnectEdge: (edgeId: string, sourceId: string, targetId: string, sourceHandle: string, targetHandle: string) => void;
   swapEdgeDirection: (edgeId: string) => void;
@@ -145,6 +148,54 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
     });
   },
 
+  addStickyNote: (logical, visual, annotation) => {
+    get().pushToHistory();
+    set((state) => {
+      const nodes = [...state.logicalData.nodes, logical];
+      const layoutNodes = { ...state.visualData.layoutNodes, [visual.id]: visual };
+      const annotations = { ...(state.visualData.annotations || {}), [annotation.id]: annotation };
+      return {
+        logicalData: { ...state.logicalData, nodes },
+        visualData: { ...state.visualData, layoutNodes, annotations },
+        isDirty: true
+      };
+    });
+  },
+
+  updateStickyNote: (id, updates) => {
+    get().pushToHistory();
+    set((state) => {
+      const existing = state.visualData.annotations?.[id];
+      if (!existing) return {};
+      const annotations = {
+        ...state.visualData.annotations,
+        [id]: { ...existing, ...updates }
+      };
+      return {
+        visualData: { ...state.visualData, annotations },
+        isDirty: true
+      };
+    });
+  },
+
+  deleteStickyNote: (id) => {
+    get().pushToHistory();
+    set((state) => {
+      const nodes = state.logicalData.nodes.filter((n) => n.id !== id);
+      const layoutNodes = { ...state.visualData.layoutNodes };
+      delete layoutNodes[id];
+      
+      const annotations = { ...state.visualData.annotations };
+      delete annotations[id];
+
+      return {
+        logicalData: { ...state.logicalData, nodes },
+        visualData: { ...state.visualData, layoutNodes, annotations },
+        isDirty: true
+      };
+    });
+  },
+
   addEdge: (logical, visual) => {
     set((state) => {
       const edges = [...state.logicalData.edges, logical];
@@ -211,9 +262,15 @@ export const createCanvasSlice: StateCreator<AppState, [], [], CanvasSlice> = (s
         }
       });
 
+      // Clean up annotations if the deleted node was a sticky note
+      const annotations = { ...state.visualData.annotations };
+      if (annotations[id]) {
+        delete annotations[id];
+      }
+
       return {
         logicalData: { nodes, edges, sequences, schemaVersion: state.logicalData.schemaVersion },
-        visualData: { ...state.visualData, layoutNodes, layoutEdges, timelines },
+        visualData: { ...state.visualData, layoutNodes, layoutEdges, timelines, annotations },
         isDirty: true
       };
     });
