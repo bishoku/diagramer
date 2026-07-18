@@ -57,6 +57,7 @@ export interface SeqMessageData {
 // ── Internal types ────────────────────────────────────────────────────────────
 interface FragmentData {
   name: string;
+  fragmentType: string;
   fragmentWidth: number;
   fragmentHeight: number;
 }
@@ -127,7 +128,12 @@ export function useSequenceLayout(): { rfNodes: Node[]; rfEdges: Edge[] } {
         id: `seq-frag-${fb.sectionNode.id}`,
         type: 'seqFragment',
         position: { x, y },
-        data: { name: fb.sectionNode.name, fragmentWidth, fragmentHeight } satisfies FragmentData,
+        data: {
+          name: fb.sectionNode.name,
+          fragmentType: (fb.sectionNode.properties?.fragmentType as string) || 'ref',
+          fragmentWidth,
+          fragmentHeight,
+        } satisfies FragmentData,
         draggable: false,
         selectable: false,
         connectable: false,
