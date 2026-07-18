@@ -5,7 +5,8 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
 // ─── Default handle IDs that every node has when no custom handles are set ─────
-const DEFAULT_HANDLE_IDS = new Set(['top:50', 'right:50', 'bottom:50', 'left:50']);
+
+
 
 function parseHandleId(id: string): { side: string; offset: number } | null {
   const parts = id.split(':');
@@ -16,9 +17,16 @@ function parseHandleId(id: string): { side: string; offset: number } | null {
 }
 
 
+
 /**
  * Full repair that requires both logicalData and visualData.
  * This is the version called during import.
+ *
+ * Repairs applied:
+ * 1. Missing handles: injects handle IDs referenced in layoutEdges but absent
+ *    from the corresponding node's handles array.
+ * 2. Absolute child coordinates: child nodes (with parentId) that accidentally
+ *    use absolute canvas coordinates are converted to section-relative coordinates.
  */
 export function repairDiagram(
   logicalData: any,
@@ -29,9 +37,10 @@ export function repairDiagram(
 
   const layoutNodes: Record<string, any> = { ...(visualData.layoutNodes ?? {}) };
   const edges: any[] = logicalData.edges ?? [];
+  const nodes: any[] = logicalData.nodes ?? [];
   const layoutEdges: Record<string, any> = visualData.layoutEdges ?? {};
 
-  // Build: nodeId → Set of required handle IDs (from edges)
+  // ── Repair 1: Missing handles ────────────────────────────────────────────
   const requiredHandles = new Map<string, Set<string>>();
   const need = (nodeId: string, handleId: string) => {
     if (!nodeId || !handleId) return;
@@ -46,12 +55,10 @@ export function repairDiagram(
     if (ve.targetHandle) need(le.targetId, ve.targetHandle);
   }
 
-  // For each node, ensure all required handles are declared
   for (const [nodeId, handleIds] of requiredHandles.entries()) {
     const vn = layoutNodes[nodeId];
     if (!vn) continue;
 
-    // Determine existing handles (explicit or implicit defaults)
     const existingHandles: any[] = vn.handles && vn.handles.length > 0
       ? [...vn.handles]
       : [
@@ -66,32 +73,119 @@ export function repairDiagram(
 
     for (const hid of handleIds) {
       if (existingIds.has(hid)) continue;
-
       const parsed = parseHandleId(hid);
       if (!parsed) continue;
-
       existingHandles.push({ id: hid, side: parsed.side, offset: parsed.offset });
       existingIds.add(hid);
       changed = true;
       repairs.push(`Node '${nodeId}': added missing handle '${hid}'`);
     }
 
-    if (changed || (vn.handles === undefined && !DEFAULT_HANDLE_IDS.has([...handleIds][0]))) {
-      // Only write the handles array when we actually changed something
-      // (or when the node needed non-default handles, in which case we now
-      // store the full explicit set so future edits don't lose them)
-      if (changed) {
-        layoutNodes[nodeId] = { ...vn, handles: existingHandles };
-      }
+    if (changed) {
+      layoutNodes[nodeId] = { ...vn, handles: existingHandles };
     }
   }
 
+  // ── Repair 2: Absolute → relative child coordinates ──────────────────────
+  // React Flow requires parentId child nodes to use coordinates relative to
+  // their parent section. If absolute canvas coords are provided, children
+  // stack up near (0,0) inside the section.
+  //
+  // Heuristic: A child uses absolute coordinates when BOTH:
+  //   (a) Its (x,y) falls outside the section's dimensions as relative coords.
+  //   (b) After subtracting section (x,y), the result falls inside the section.
+
+  const sectionMap: Record<string, any> = {};
+  for (const ln of nodes) {
+    if (ln.type === 'section') {
+      const vn = layoutNodes[ln.id];
+      if (vn) sectionMap[ln.id] = vn;
+    }
+  }
+
+  for (const ln of nodes) {
+    const parentId = ln.parentId;
+    if (!parentId || !sectionMap[parentId]) continue;
+
+    const vn = layoutNodes[ln.id];
+    if (!vn) continue;
+
+    const section = sectionMap[parentId];
+    const sx = section.x ?? 0;
+    const sy = section.y ?? 0;
+    const sw = section.width ?? 9999;
+    const sh = section.height ?? 9999;
+    const nx = vn.x ?? 0;
+    const ny = vn.y ?? 0;
+    const nw = vn.width ?? 224;
+    const nh = vn.height ?? 52;
+
+    const outsideAsRelative = nx > sw || ny > sh || nx < -nw || ny < -nh;
+    const relX = nx - sx;
+    const relY = ny - sy;
+    const insideAfterConversion = relX >= 0 && relY >= 0 && relX < sw && relY < sh;
+
+    if (outsideAsRelative && insideAfterConversion) {
+      layoutNodes[ln.id] = { ...vn, x: relX, y: relY };
+      repairs.push(
+        `Node '${ln.id}': converted absolute (${nx},${ny}) → section-relative (${relX},${relY}) within '${parentId}'`
+      );
+    }
+  }
+
+  // ── Repair 3: Orphaned annotations → synthesise missing sticky_note nodes ─
+  // A sticky note requires three entries:
+  //   (a) logicalData.nodes[type=sticky_note]
+  //   (b) visualData.layoutNodes[id]   — position + size
+  //   (c) visualData.annotations[id]  — content + style
+  //
+  // If an annotation exists but (a) or (b) are missing, synthesise them.
+
+  const annotations: Record<string, any> = visualData.annotations ?? {};
+  const logicalNodeIds = new Set(nodes.map((n: any) => n.id));
+  const repairedNodes = [...nodes];
+
+  for (const [noteId, annotation] of Object.entries(annotations)) {
+    if (!annotation || typeof annotation !== 'object') continue;
+
+    // (a) Missing logical node
+    if (!logicalNodeIds.has(noteId)) {
+      repairedNodes.push({
+        id: noteId,
+        type: 'sticky_note',
+        name: annotation.header ?? 'Sticky Note',
+        properties: { _visualOnly: true },
+      });
+      logicalNodeIds.add(noteId);
+      repairs.push(`Annotation '${noteId}': synthesised missing logicalData.nodes entry`);
+    }
+
+    // (b) Missing layoutNode (position/size)
+    if (!layoutNodes[noteId]) {
+      // Place in a safe default position; the user can move it after import
+      layoutNodes[noteId] = {
+        id: noteId,
+        x: 50,
+        y: 50,
+        width: 280,
+        height: 160,
+      };
+      repairs.push(`Annotation '${noteId}': synthesised missing layoutNodes entry at (50, 50)`);
+    }
+  }
+
+  const repairedLogical = repairedNodes.length !== nodes.length
+    ? { ...logicalData, nodes: repairedNodes }
+    : logicalData;
+
   const repairedVisual = repairs.length > 0
-    ? { ...visualData, layoutNodes }
+    ? { ...visualData, layoutNodes, annotations }
     : visualData;
 
-  return { logicalData, visualData: repairedVisual, repairs };
+  return { logicalData: repairedLogical, visualData: repairedVisual, repairs };
 }
+
+
 
 export interface ImportConflict {
   compId: string;
@@ -296,14 +390,13 @@ export const importWorkspace = async (
       sequences: logicalData.sequences || []
     };
 
-    // 5b. Auto-repair: inject any handle IDs that are referenced in layoutEdges
-    //     but missing from their source/target node's handles array.
-    const { visualData: repairedVisual, repairs } = repairDiagram(cleanLogical, visualData);
+    // 5b. Auto-repair: handles, section coordinates, and sticky note consistency.
+    const { logicalData: repairedLogical, visualData: repairedVisual, repairs } = repairDiagram(cleanLogical, visualData);
     if (repairs.length > 0) {
-      console.info(`[import] Applied ${repairs.length} handle repair(s):`, repairs);
+      console.info(`[import] Applied ${repairs.length} repair(s):`, repairs);
     }
 
-    await saveDiagramFn(newWs.path, JSON.stringify(cleanLogical), JSON.stringify(repairedVisual));
+    await saveDiagramFn(newWs.path, JSON.stringify(repairedLogical), JSON.stringify(repairedVisual));
 
     
     return newWs;

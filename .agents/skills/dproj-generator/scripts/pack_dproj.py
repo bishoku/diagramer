@@ -5,17 +5,10 @@ pack_dproj.py — Validates and packs workspace.json + diagram.json into a .dpro
 Usage:
   python pack_dproj.py <output.dproj> <workspace.json> <diagram.json>
 
-Validations performed:
-  - Both JSON files parse without errors
-  - schemaVersion = 1
-  - Every LogicalNode has a matching VisualNode in layoutNodes (and vice-versa)
-  - Every LogicalEdge has a matching VisualEdge in layoutEdges
-  - All foreign keys are valid (edge→node, sequence→edge, timeline→sequence)
-  - All node types are from the registered list
-
 Auto-repairs applied silently before packing:
-  - Handle IDs referenced in layoutEdges but missing from the source/target
-    node's handles array are injected automatically.
+  1. Handle IDs referenced in layoutEdges but missing from node handles → injected.
+  2. Child nodes (parentId set) using absolute canvas coordinates → converted to
+     section-relative coordinates using a two-condition heuristic.
 """
 
 import sys
@@ -23,15 +16,11 @@ import json
 import zipfile
 import os
 
-# ─── Constants ────────────────────────────────────────────────────────────────
-
 VALID_TYPES = {
     "client", "load_balancer", "gateway", "server", "database",
     "cache", "queue", "firewall", "section", "sticky_note",
 }
-
 VALID_SIDES = {"top", "right", "bottom", "left"}
-
 DEFAULT_HANDLES = [
     {"id": "top:50",    "side": "top",    "offset": 50},
     {"id": "right:50",  "side": "right",  "offset": 50},
@@ -40,10 +29,8 @@ DEFAULT_HANDLES = [
 ]
 DEFAULT_HANDLE_IDS = {h["id"] for h in DEFAULT_HANDLES}
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def parse_handle_id(handle_id: str):
-    """Parse 'side:offset' → (side, offset) or None if malformed."""
     parts = handle_id.split(":")
     if len(parts) != 2:
         return None
@@ -69,13 +56,12 @@ def validate_workspace(data: dict) -> list:
     return errors
 
 
-# ─── Handle auto-repair ────────────────────────────────────────────────────────
+# ─── Repair 1: Handle injection ────────────────────────────────────────────────
 
 def repair_handles(data: dict) -> list:
     """
-    Auto-repair: inject any handle IDs referenced in layoutEdges into the
-    corresponding layoutNode.handles array when they are missing.
-    Mutates data in place. Returns human-readable repair descriptions.
+    Inject handle IDs referenced in layoutEdges that are missing from node
+    handles arrays. Mutates data in place.
     """
     repairs = []
     ld = data.get("logicalData", {})
@@ -84,7 +70,6 @@ def repair_handles(data: dict) -> list:
     layout_nodes = vd.get("layoutNodes", {})
     layout_edges = vd.get("layoutEdges", {})
 
-    # nodeId → set of required handle IDs derived from edges
     required: dict = {}
     for le in edges:
         ve = layout_edges.get(le.get("id", ""))
@@ -107,19 +92,16 @@ def repair_handles(data: dict) -> list:
             existing_ids = {h["id"] for h in existing}
             current = list(existing)
         else:
-            # Node has implicit defaults — materialise them so we can extend
             existing_ids = set(DEFAULT_HANDLE_IDS)
             current = [dict(h) for h in DEFAULT_HANDLES]
 
         changed = False
-        for hid in sorted(handle_ids):  # sorted for deterministic output
+        for hid in sorted(handle_ids):
             if hid in existing_ids:
                 continue
             parsed = parse_handle_id(hid)
             if not parsed:
-                repairs.append(
-                    f"  ⚠  Node '{node_id}': cannot parse handle id '{hid}' — skipped"
-                )
+                repairs.append(f"  ⚠  Node '{node_id}': cannot parse handle id '{hid}' — skipped")
                 continue
             side, offset = parsed
             current.append({"id": hid, "side": side, "offset": offset})
@@ -133,7 +115,123 @@ def repair_handles(data: dict) -> list:
     return repairs
 
 
+# ─── Repair 2: Section-relative coordinates ────────────────────────────────────
+
+def repair_section_coordinates(data: dict) -> list:
+    """
+    Child nodes with parentId must use section-relative coordinates.
+    Detects and converts absolute canvas coordinates to relative using a
+    two-condition heuristic:
+      (a) Node position falls outside section bounds when treated as relative.
+      (b) After subtracting section position, the node falls inside the section.
+    Mutates data in place.
+    """
+    repairs = []
+    ld = data.get("logicalData", {})
+    vd = data.get("visualData", {})
+    nodes = ld.get("nodes", [])
+    layout_nodes = vd.get("layoutNodes", {})
+
+    # Build section map
+    sections = {}
+    for n in nodes:
+        if n.get("type") == "section":
+            vn = layout_nodes.get(n["id"])
+            if vn:
+                sections[n["id"]] = vn
+
+    for n in nodes:
+        parent_id = n.get("parentId")
+        if not parent_id or parent_id not in sections:
+            continue
+
+        vn = layout_nodes.get(n["id"])
+        if not vn:
+            continue
+
+        section = sections[parent_id]
+        sx = section.get("x", 0)
+        sy = section.get("y", 0)
+        sw = section.get("width", 9999)
+        sh = section.get("height", 9999)
+        nx = vn.get("x", 0)
+        ny = vn.get("y", 0)
+        nw = vn.get("width", 224)
+        nh = vn.get("height", 52)
+
+        # (a) Looks wrong as relative coords
+        outside_as_relative = nx > sw or ny > sh or nx < -nw or ny < -nh
+
+        # (b) Makes sense after converting to relative
+        rel_x = nx - sx
+        rel_y = ny - sy
+        inside_after_conversion = 0 <= rel_x < sw and 0 <= rel_y < sh
+
+        if outside_as_relative and inside_after_conversion:
+            vn["x"] = rel_x
+            vn["y"] = rel_y
+            repairs.append(
+                f"  ✎  Node '{n['id']}': abs ({nx},{ny}) → relative ({rel_x},{rel_y})"
+                f" within section '{parent_id}'"
+            )
+
+    return repairs
+
+
+# ─── Repair 3: Orphaned annotations → synthesise missing sticky_note entries ──
+
+def repair_sticky_notes(data: dict) -> list:
+    """
+    A sticky note requires THREE entries:
+      (a) logicalData.nodes  — type='sticky_note'
+      (b) visualData.layoutNodes — position + size
+      (c) visualData.annotations — content + style
+
+    If (c) exists but (a) or (b) are missing, synthesise them.
+    Mutates data in place.
+    """
+    repairs = []
+    ld = data.get("logicalData", {})
+    vd = data.get("visualData", {})
+    annotations = vd.get("annotations", {})
+    if not annotations:
+        return repairs
+
+    nodes = ld.setdefault("nodes", [])
+    layout_nodes = vd.setdefault("layoutNodes", {})
+    existing_ids = {n.get("id") for n in nodes}
+
+    for note_id, annotation in annotations.items():
+        if not isinstance(annotation, dict):
+            continue
+
+        # (a) Missing logical node
+        if note_id not in existing_ids:
+            nodes.append({
+                "id": note_id,
+                "type": "sticky_note",
+                "name": annotation.get("header", "Sticky Note"),
+                "properties": {"_visualOnly": True}
+            })
+            existing_ids.add(note_id)
+            repairs.append(f"  ✎  Annotation '{note_id}': synthesised missing logicalData.nodes entry")
+
+        # (b) Missing layoutNode
+        if note_id not in layout_nodes:
+            layout_nodes[note_id] = {
+                "id": note_id,
+                "x": 50,
+                "y": 50,
+                "width": 280,
+                "height": 160
+            }
+            repairs.append(f"  ✎  Annotation '{note_id}': synthesised missing layoutNodes entry at (50, 50)")
+
+    return repairs
+
+
 # ─── Diagram validation ────────────────────────────────────────────────────────
+
 
 def validate_diagram(data: dict) -> list:
     errors = []
@@ -162,7 +260,6 @@ def validate_diagram(data: dict) -> list:
     edge_ids = {e["id"] for e in edges if "id" in e}
     seq_ids  = {s["id"] for s in sequences if "id" in s}
 
-    # Logical ↔ Visual ID matching
     for nid in node_ids:
         if nid not in layout_nodes:
             errors.append(f"LogicalNode '{nid}' has no matching VisualNode in layoutNodes")
@@ -171,30 +268,20 @@ def validate_diagram(data: dict) -> list:
         if eid not in layout_edges:
             errors.append(f"LogicalEdge '{eid}' has no matching VisualEdge in layoutEdges")
 
-    # Foreign keys
     for e in edges:
         if e.get("sourceId") not in node_ids:
-            errors.append(
-                f"Edge '{e.get('id')}': sourceId '{e.get('sourceId')}' not found in nodes"
-            )
+            errors.append(f"Edge '{e.get('id')}': sourceId '{e.get('sourceId')}' not found")
         if e.get("targetId") not in node_ids:
-            errors.append(
-                f"Edge '{e.get('id')}': targetId '{e.get('targetId')}' not found in nodes"
-            )
+            errors.append(f"Edge '{e.get('id')}': targetId '{e.get('targetId')}' not found")
 
     for s in sequences:
         if s.get("edgeId") not in edge_ids:
-            errors.append(
-                f"Sequence '{s.get('id')}': edgeId '{s.get('edgeId')}' not found in edges"
-            )
+            errors.append(f"Sequence '{s.get('id')}': edgeId '{s.get('edgeId')}' not found")
 
     for tid, t in timelines.items():
         if t.get("sequenceId") not in seq_ids:
-            errors.append(
-                f"Timeline '{tid}': sequenceId '{t.get('sequenceId')}' not found in sequences"
-            )
+            errors.append(f"Timeline '{tid}': sequenceId '{t.get('sequenceId')}' not found")
 
-    # Node types
     for n in nodes:
         ntype = n.get("type", "")
         if ntype and not ntype.startswith("custom-comp-") and ntype not in VALID_TYPES:
@@ -203,12 +290,11 @@ def validate_diagram(data: dict) -> list:
                 f" (valid: {', '.join(sorted(VALID_TYPES))})"
             )
 
-    # Handle consistency (informational — already auto-repaired, but validate post-repair)
+    # Post-repair handle consistency check
     for le in edges:
         ve = layout_edges.get(le.get("id", ""))
         if not ve:
             continue
-
         for attr, node_id in [("sourceHandle", le.get("sourceId")), ("targetHandle", le.get("targetId"))]:
             hid = ve.get(attr)
             if not hid or not node_id:
@@ -222,14 +308,12 @@ def validate_diagram(data: dict) -> list:
                 if hid not in declared:
                     errors.append(
                         f"Edge '{le.get('id')}' {attr} '{hid}' not in node '{node_id}' handles"
-                        " (handle repair may have failed — check the data manually)"
+                        " (repair failed — check manually)"
                     )
-            # If no handles array, only defaults exist — check them
             elif hid not in DEFAULT_HANDLE_IDS:
                 errors.append(
                     f"Edge '{le.get('id')}' {attr} '{hid}' is not a default handle"
-                    f" and node '{node_id}' has no handles array"
-                    " (handle repair may have failed — check the data manually)"
+                    f" and node '{node_id}' has no handles array (repair failed)"
                 )
 
     return errors
@@ -242,14 +326,13 @@ def main():
         print("Usage: pack_dproj.py <output.dproj> <workspace.json> <diagram.json>")
         sys.exit(1)
 
-    output_path   = sys.argv[1]
+    output_path    = sys.argv[1]
     workspace_path = sys.argv[2]
     diagram_path   = sys.argv[3]
 
     if not output_path.endswith(".dproj"):
         output_path += ".dproj"
 
-    # ── Load files ──────────────────────────────────────────────────────────
     for path in (workspace_path, diagram_path):
         if not os.path.exists(path):
             print(f"ERROR: {path} not found")
@@ -269,12 +352,20 @@ def main():
             print(f"ERROR: {diagram_path} is not valid JSON: {e}")
             sys.exit(1)
 
-    # ── Auto-repair handles (before validation so post-repair state is checked) ─
-    repairs = repair_handles(diagram_data)
-    if repairs:
-        print(f"Auto-repaired {len(repairs)} handle issue(s):")
-        for r in repairs:
+    # ── Auto-repairs ────────────────────────────────────────────────────────
+    all_repairs = []
+    coord_repairs = repair_section_coordinates(diagram_data)
+    all_repairs.extend(coord_repairs)
+    note_repairs = repair_sticky_notes(diagram_data)
+    all_repairs.extend(note_repairs)
+    handle_repairs = repair_handles(diagram_data)
+    all_repairs.extend(handle_repairs)
+
+    if all_repairs:
+        print(f"Auto-repaired {len(all_repairs)} issue(s):")
+        for r in all_repairs:
             print(r)
+        print()
 
     # ── Validate ────────────────────────────────────────────────────────────
     ws_errors   = validate_workspace(workspace_data)
@@ -282,7 +373,7 @@ def main():
     all_errors  = ws_errors + diag_errors
 
     if all_errors:
-        print(f"\nValidation found {len(all_errors)} error(s):")
+        print(f"Validation found {len(all_errors)} error(s):")
         for err in all_errors:
             print(f"  ✗ {err}")
         sys.exit(1)
@@ -300,7 +391,7 @@ def main():
     n_edges = len(ld.get("edges", []))
     n_seqs  = len(ld.get("sequences", []))
 
-    print(f"\n✓ Created {abs_path} ({size_kb:.1f} KB)")
+    print(f"✓ Created {abs_path} ({size_kb:.1f} KB)")
     print(f"  {n_nodes} nodes, {n_edges} edges, {n_seqs} sequences")
 
 

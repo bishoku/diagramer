@@ -67,12 +67,61 @@ Two layers — **both required**. Logical (what exists, how connected) + Visual 
 - `delay` = cumulative start time. Sequential: `delay = prev.delay + prev.duration`. Parallel: same delay.
 - Duration guide: internal 500-800ms, HTTP 800-1200ms, DB 500-1000ms, external 1000-2000ms, async publish 300-600ms.
 
-**StickyNote**: `{ id, header, body, style: { backgroundColor, borderColor, textColor, fontFamily("Inter"), fontSize, borderRadius, opacity }, startTime, endTime, alwaysVisible? }`
+### ⚠️ Sticky Notes require THREE entries (critical)
+
+A sticky note is NOT a standalone annotation object. It requires **all three** of:
+
+**1. `logicalData.nodes`** — a node with `type: "sticky_note"`:
+```json
+{"id": "note-1", "type": "sticky_note", "name": "My Note", "properties": {"_visualOnly": true}}
+```
+
+**2. `visualData.layoutNodes`** — position and size for that ID:
+```json
+"note-1": {"id": "note-1", "x": 100, "y": 200, "width": 260, "height": 160}
+```
+
+**3. `visualData.annotations`** — the content and style for that same ID:
+```json
+"note-1": {
+  "id": "note-1",
+  "header": "Title",
+  "body": "Content line 1\nContent line 2",
+  "style": {
+    "backgroundColor": "#0f172a", "borderColor": "#6366f1",
+    "textColor": "#e2e8f0", "fontFamily": "Inter",
+    "fontSize": 12, "borderRadius": 8, "opacity": 0.95
+  },
+  "startTime": 0, "endTime": 9999, "alwaysVisible": true
+}
+```
+
+- `alwaysVisible: true` → always shown. `false` → only shown during `[startTime, endTime]` ms window.
+- Sticky notes **cannot have edges** — they are visual-only.
+- Default size: 260×160px. Place them away from other nodes to avoid overlap.
 
 ## Layout Rules
 
 - Node default: 224×52px. Spacing: 300-350px horizontal, 150-200px vertical, 100px minimum gap.
 - Section nodes enclose children with 40px padding on all sides.
+
+### ⚠️ Section Child Coordinates (critical)
+
+Nodes with `parentId` use **section-relative coordinates** — (0,0) is the section's top-left corner, NOT the canvas origin.
+
+```
+child.x = absolute_canvas_x - section.x
+child.y = absolute_canvas_y - section.y
+```
+
+Example — section at canvas (1000, 200), child node at canvas (1060, 280):
+```json
+"s-backend": { "id":"s-backend", "x":1000, "y":200, "width":500, "height":300, "zIndex":-1 },
+"n-api":     { "id":"n-api",     "x":60,   "y":80,  "width":224, "height":52  }
+```
+The `60` and `80` are relative to the section — NOT canvas coordinates.
+
+Section bounds must enclose all children: `section.width ≥ child.x + child.width + 40`, same for height.
 
 ### ⚠️ Handle Consistency Rule (critical)
 
