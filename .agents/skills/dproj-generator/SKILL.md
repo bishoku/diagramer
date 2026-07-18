@@ -56,6 +56,7 @@ Two layers — **both required**. Logical (what exists, how connected) + Visual 
 **VisualNode**: `{ id, x, y, width?(224), height?(52), theme?, zIndex?, handles?, displayMode?, rotation?, customStyles? }`
 - Themes: `indigo`(clients) | `emerald`(gateways) | `rose`(databases) | `amber`(servers) | `violet`(queues) | `cyan`(caches)
 - Section nodes: `zIndex: -1`, sized to enclose children + 40px padding.
+- `handles`: array of `{ id, side, offset }`. If omitted, the node gets 4 default handles (top/right/bottom/left all at offset 50).
 
 **VisualEdge**: `{ id, sourceHandle?, targetHandle?, particleType?, showArrow?(true), color? }`
 - Handles format: `"side:offset"` e.g. `"right:50"`, `"top:25"`. Offset = 0-100%.
@@ -71,8 +72,34 @@ Two layers — **both required**. Logical (what exists, how connected) + Visual 
 ## Layout Rules
 
 - Node default: 224×52px. Spacing: 300-350px horizontal, 150-200px vertical, 100px minimum gap.
-- Vary handle offsets (`right:33`, `right:66`) for multiple cross-connections to prevent overlap.
 - Section nodes enclose children with 40px padding on all sides.
+
+### ⚠️ Handle Consistency Rule (critical)
+
+Every handle ID used in `layoutEdges.sourceHandle` / `targetHandle` **must exist** in the source/target `layoutNode.handles` array. If a node has no `handles` array, it only has the 4 default handles: `top:50`, `right:50`, `bottom:50`, `left:50`.
+
+**Rule:** If you use any non-default offset (e.g. `right:25`, `bottom:33`), you MUST declare it in the node's `handles` array AND keep the default handles too — otherwise the edge will not connect.
+
+Example — node with default handles + one extra:
+```json
+"n-client": {
+  "id": "n-client", "x": 0, "y": 0, "width": 224, "height": 52, "theme": "indigo",
+  "handles": [
+    {"id": "top:50",   "side": "top",    "offset": 50},
+    {"id": "right:50", "side": "right",  "offset": 50},
+    {"id": "right:25", "side": "right",  "offset": 25},
+    {"id": "bottom:50","side": "bottom", "offset": 50},
+    {"id": "left:50",  "side": "left",   "offset": 50}
+  ]
+}
+```
+
+The matching edge entry:
+```json
+"e-back": {"id":"e-back", "sourceHandle":"right:25", "targetHandle":"left:50", "showArrow":true}
+```
+
+**Safest approach:** Use only `right:50` / `left:50` / `top:50` / `bottom:50` (the defaults) when possible. Only add custom offsets when you need multiple parallel edges between the same pair of nodes.
 
 ## Constraints
 

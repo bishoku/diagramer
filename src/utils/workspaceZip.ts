@@ -4,6 +4,95 @@ import { WorkspaceMeta } from '../types';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
+// ─── Default handle IDs that every node has when no custom handles are set ─────
+const DEFAULT_HANDLE_IDS = new Set(['top:50', 'right:50', 'bottom:50', 'left:50']);
+
+function parseHandleId(id: string): { side: string; offset: number } | null {
+  const parts = id.split(':');
+  if (parts.length !== 2) return null;
+  const offset = Number(parts[1]);
+  if (isNaN(offset) || offset < 0 || offset > 100) return null;
+  return { side: parts[0], offset };
+}
+
+
+/**
+ * Full repair that requires both logicalData and visualData.
+ * This is the version called during import.
+ */
+export function repairDiagram(
+  logicalData: any,
+  visualData: any
+): { logicalData: any; visualData: any; repairs: string[] } {
+  const repairs: string[] = [];
+  if (!visualData || !logicalData) return { logicalData, visualData, repairs };
+
+  const layoutNodes: Record<string, any> = { ...(visualData.layoutNodes ?? {}) };
+  const edges: any[] = logicalData.edges ?? [];
+  const layoutEdges: Record<string, any> = visualData.layoutEdges ?? {};
+
+  // Build: nodeId → Set of required handle IDs (from edges)
+  const requiredHandles = new Map<string, Set<string>>();
+  const need = (nodeId: string, handleId: string) => {
+    if (!nodeId || !handleId) return;
+    if (!requiredHandles.has(nodeId)) requiredHandles.set(nodeId, new Set());
+    requiredHandles.get(nodeId)!.add(handleId);
+  };
+
+  for (const le of edges) {
+    const ve = layoutEdges[le.id];
+    if (!ve) continue;
+    if (ve.sourceHandle) need(le.sourceId, ve.sourceHandle);
+    if (ve.targetHandle) need(le.targetId, ve.targetHandle);
+  }
+
+  // For each node, ensure all required handles are declared
+  for (const [nodeId, handleIds] of requiredHandles.entries()) {
+    const vn = layoutNodes[nodeId];
+    if (!vn) continue;
+
+    // Determine existing handles (explicit or implicit defaults)
+    const existingHandles: any[] = vn.handles && vn.handles.length > 0
+      ? [...vn.handles]
+      : [
+          { id: 'top:50',    side: 'top',    offset: 50 },
+          { id: 'right:50',  side: 'right',  offset: 50 },
+          { id: 'bottom:50', side: 'bottom', offset: 50 },
+          { id: 'left:50',   side: 'left',   offset: 50 },
+        ];
+
+    const existingIds = new Set(existingHandles.map((h: any) => h.id));
+    let changed = false;
+
+    for (const hid of handleIds) {
+      if (existingIds.has(hid)) continue;
+
+      const parsed = parseHandleId(hid);
+      if (!parsed) continue;
+
+      existingHandles.push({ id: hid, side: parsed.side, offset: parsed.offset });
+      existingIds.add(hid);
+      changed = true;
+      repairs.push(`Node '${nodeId}': added missing handle '${hid}'`);
+    }
+
+    if (changed || (vn.handles === undefined && !DEFAULT_HANDLE_IDS.has([...handleIds][0]))) {
+      // Only write the handles array when we actually changed something
+      // (or when the node needed non-default handles, in which case we now
+      // store the full explicit set so future edits don't lose them)
+      if (changed) {
+        layoutNodes[nodeId] = { ...vn, handles: existingHandles };
+      }
+    }
+  }
+
+  const repairedVisual = repairs.length > 0
+    ? { ...visualData, layoutNodes }
+    : visualData;
+
+  return { logicalData, visualData: repairedVisual, repairs };
+}
+
 export interface ImportConflict {
   compId: string;
   name: string;
@@ -206,8 +295,16 @@ export const importWorkspace = async (
       edges: logicalData.edges || [],
       sequences: logicalData.sequences || []
     };
-    
-    await saveDiagramFn(newWs.path, JSON.stringify(cleanLogical), JSON.stringify(visualData));
+
+    // 5b. Auto-repair: inject any handle IDs that are referenced in layoutEdges
+    //     but missing from their source/target node's handles array.
+    const { visualData: repairedVisual, repairs } = repairDiagram(cleanLogical, visualData);
+    if (repairs.length > 0) {
+      console.info(`[import] Applied ${repairs.length} handle repair(s):`, repairs);
+    }
+
+    await saveDiagramFn(newWs.path, JSON.stringify(cleanLogical), JSON.stringify(repairedVisual));
+
     
     return newWs;
   } catch (err) {
