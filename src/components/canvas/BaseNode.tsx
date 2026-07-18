@@ -15,15 +15,22 @@ interface BaseNodeProps {
   selected?: boolean;
 }
 
-const getIcon = (type: string, colorClass?: string, isIconOnly?: boolean) => {
+const getIcon = (type: string, colorClass: string, isIconOnly: boolean, customColor?: string) => {
   const def = getNodeDefinition(type);
+  const sizeClass = isIconOnly ? 'w-[80%] h-[80%]' : 'w-7 h-7';
+  const isHex = customColor?.startsWith('#');
+  const isPredefined = customColor && !isHex;
+  const finalColorClass = isPredefined ? (themeStyles[customColor]?.text ?? colorClass) : colorClass;
+  const className = `${sizeClass} ${isHex ? '' : finalColorClass} transition-all duration-300`;
+  const extraProps = {
+    className,
+    style: isHex ? { color: customColor } : undefined,
+  };
+
   if (def) {
-    const color = colorClass ?? def.colorClass;
-    return React.cloneElement(def.icon as React.ReactElement, {
-      className: `${isIconOnly ? 'w-[80%] h-[80%]' : 'w-5 h-5'} ${color} transition-all duration-300`,
-    } as any);
+    return React.cloneElement(def.icon as React.ReactElement, extraProps as any);
   }
-  return getDefaultIcon(colorClass ?? 'text-slate-500');
+  return React.cloneElement(getDefaultIcon(colorClass) as React.ReactElement, extraProps as any);
 };
 
 const sideToPosition = (side: PortSide): Position => {
@@ -84,11 +91,14 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
   const style           = themeStyles[themeKey] ?? themeStyles.indigo;
   const customTemplate  = libraryComponents.find((c: any) => c.componentId === type);
 
+  const isCustomTheme = themeKey.startsWith('#');
+
   const containerStyle: React.CSSProperties = {
     backgroundColor: customStyles.backgroundColor || undefined,
-    borderColor:     customStyles.borderColor     || undefined,
+    borderColor:     customStyles.borderColor     || (isCustomTheme ? themeKey : undefined),
     borderStyle:     customStyles.borderStyle     || undefined,
     borderRadius:    customStyles.borderRadius ? `${customStyles.borderRadius}px` : undefined,
+    boxShadow:       (selected && isCustomTheme) ? `0 0 0 3px ${themeKey}33` : undefined,
   };
 
   // ── Key design principle ──────────────────────────────────────────────────
@@ -166,17 +176,17 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
         className={`w-full h-full rounded-xl text-slate-800 dark:text-slate-100 flex items-center justify-center transition-all duration-200 ${
           displayMode === 'icon-only'
             ? `bg-transparent border-transparent ${selected ? 'ring-2 ring-indigo-500/50' : ''}`
-            : `border-2 gap-3 shadow-md dark:shadow-xl ${
+            : `border-2 shadow-md dark:shadow-xl ${
                 // Vertical layout: icon on top, text below
-                isVertical ? 'flex-col px-2 py-4' : 'flex-row px-4 py-3'
+                isVertical ? 'flex-col px-2 py-4 gap-3' : 'flex-row px-4 py-3 gap-2.5'
               } ${
                 isProcessing
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 scale-[1.02] shadow-emerald-100 dark:shadow-emerald-950/40 ring-4 ring-emerald-500/20 animate-pulse'
                   : isNodeActive
                   ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 dark:border-indigo-400 scale-[1.02] shadow-indigo-100 dark:shadow-indigo-950/40 ring-4 ring-indigo-500/20'
                   : selected
-                  ? `bg-white dark:bg-slate-900 ${style.border} ${style.ring} ring-4 ring-indigo-500/10`
-                  : `bg-white dark:bg-slate-900 ${style.border} ${style.borderHover}`
+                  ? `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.border} ${style.ring}`} ${isCustomTheme ? '' : 'ring-4 ring-indigo-500/10'}`
+                  : `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.border} ${style.borderHover}`}`
               }`
         }`}
       >
@@ -185,7 +195,7 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
           className={`flex items-center justify-center shrink-0 overflow-hidden transition-all duration-300 ${
             displayMode === 'icon-only'
               ? 'w-full h-full'
-              : `p-1.5 rounded-lg border ${style.bg} ${style.border} w-10 h-10`
+              : 'w-8 h-8'
           }`}
         >
           {customTemplate ? (
@@ -195,9 +205,14 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
               height={customTemplate.dimensions.height}
             />
           ) : (
-            getIcon(type, style.text, displayMode === 'icon-only')
+            getIcon(type, style.text, displayMode === 'icon-only', customStyles.iconColor)
           )}
         </div>
+
+        {/* Divider (only for horizontal layout with text) */}
+        {displayMode === 'default' && !isVertical && (
+          <div className="w-px h-7 bg-slate-200 dark:bg-slate-800/80 shrink-0 self-center" />
+        )}
 
         {/* Text — vertical mode uses writing-mode so text reads bottom-to-top */}
         {displayMode === 'default' && (
