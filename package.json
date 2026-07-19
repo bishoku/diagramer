@@ -26,9 +26,11 @@
     "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
     "lz-string": "^1.5.0",
+    "mp4-muxer": "^5.2.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.3.2",
+    "webm-muxer": "^5.1.4",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

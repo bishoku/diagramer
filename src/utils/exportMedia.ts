@@ -1,4 +1,4 @@
-import { toPng, toCanvas } from 'html-to-image';
+import { toPng, toCanvas, getFontEmbedCSS } from 'html-to-image';
 // @ts-ignore — gifenc ships ESM-only; types are inferred at runtime
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 import { useAppStore } from '../store/useAppStore';
@@ -91,6 +91,8 @@ const captureFrames = async (
   scale: number,
   skipStatic: boolean,
   bgColor: string,
+  /** Pre-fetched font CSS — call getFontEmbedCSS(node) once before the loop. */
+  fontEmbedCSS: string,
   onProgress: (pct: number) => void
 ): Promise<{ canvas: HTMLCanvasElement; delay: number }[]> => {
   const store = useAppStore.getState();
@@ -119,10 +121,14 @@ const captureFrames = async (
     await waitRender();
     await new Promise((r) => setTimeout(r, 10)); // let react-flow finish
 
-    // Capture at full resolution, then scale down via drawImage for best quality
+    // Capture at full resolution, then scale down via drawImage for best quality.
+    // fontEmbedCSS is pre-fetched once before the loop so fonts render correctly
+    // on every frame without re-downloading. skipFonts is intentionally NOT used
+    // here — it caused html-to-image to fall back to a system font with different
+    // character metrics, making edge label text wrap at wrong break points.
     const raw = await toCanvas(node, {
       pixelRatio: 1,
-      skipFonts: true,
+      fontEmbedCSS,
       backgroundColor: bgColor,
       width: node.clientWidth,
       height: node.clientHeight,
@@ -196,6 +202,9 @@ export const exportToGif = async (
     const numColors = Math.round(16 + (quality / 100) * 240);
 
     // ── Phase 1: Capture frames (0-55%) ──────────────────────
+    // Pre-fetch font CSS once so each frame uses the correct web fonts.
+    // The browser has already loaded fonts, so this is typically instant.
+    const fontEmbedCSS = await getFontEmbedCSS(node).catch(() => '');
     const frames = await captureFrames(
       node,
       maxDuration,
@@ -203,6 +212,7 @@ export const exportToGif = async (
       scale,
       skipStatic,
       bgColor,
+      fontEmbedCSS,
       onProgress
     );
 
@@ -255,9 +265,168 @@ export const exportToGif = async (
   }
 };
 
+
 // ─────────────────────────────────────────────────────────────
-// Video (WebM) Export — uses MediaRecorder API
+// Video (WebM) Export
+//
+// Fast path  → WebCodecs API + webm-muxer
+//   Encodes frames with explicit timestamps, no real-time wait.
+//   Hardware-accelerated on supported GPUs. Typically 20-50× faster
+//   than the animation duration (vs. MediaRecorder which takes ≥ duration).
+//
+// Fallback   → MediaRecorder API
+//   Used when VideoEncoder is unavailable (older browsers).
 // ─────────────────────────────────────────────────────────────
+
+/** True when the browser / Tauri WebView supports the WebCodecs API. */
+const supportsWebCodecs = (): boolean =>
+  typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
+
+const BITRATES: Record<string, number> = {
+  low:    1_000_000,
+  medium: 3_000_000,
+  high:   8_000_000,
+};
+
+/**
+ * Fast encoding path via WebCodecs + webm-muxer.
+ * Frames are submitted with explicit timestamps — no setTimeout waiting.
+ * Returns the finished WebM blob.
+ */
+const encodeWithWebCodecs = async (
+  frames: { canvas: HTMLCanvasElement; delay: number }[],
+  width: number,
+  height: number,
+  fps: number,
+  quality: 'low' | 'medium' | 'high',
+  onProgress: (pct: number) => void
+): Promise<Blob> => {
+  const { Muxer, ArrayBufferTarget } = await import('webm-muxer');
+
+  // Probe codec support: prefer VP9 (better compression), fall back to VP8
+  type CodecPair = { enc: string; mux: 'V_VP9' | 'V_VP8' };
+  const candidates: CodecPair[] = [
+    { enc: 'vp09.00.41.08', mux: 'V_VP9' }, // VP9 profile 0, level 4.1
+    { enc: 'vp8',           mux: 'V_VP8' },
+  ];
+
+  let codec: CodecPair | undefined;
+  for (const c of candidates) {
+    const probe = await VideoEncoder.isConfigSupported({
+      codec: c.enc, width, height,
+      bitrate: BITRATES[quality],
+      framerate: fps,
+    });
+    if (probe.supported) { codec = c; break; }
+  }
+  if (!codec) throw new Error('No supported WebCodecs video codec found.');
+
+  const target  = new ArrayBufferTarget();
+  const muxer   = new Muxer({
+    target,
+    video: { codec: codec.mux, width, height, frameRate: fps },
+    firstTimestampBehavior: 'strict',
+  });
+
+  return new Promise<Blob>((resolve, reject) => {
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => {
+        try { muxer.addVideoChunk(chunk, meta); }
+        catch (e) { reject(e); }
+      },
+      error: reject,
+    });
+
+    encoder.configure({
+      codec:                 codec!.enc,
+      width,
+      height,
+      bitrate:               BITRATES[quality],
+      framerate:             fps,
+      hardwareAcceleration:  'prefer-hardware',
+      latencyMode:           'quality',
+    });
+
+    (async () => {
+      try {
+        let timestampUs   = 0;
+        const keyInterval = Math.max(1, fps * 2); // keyframe every 2 s
+
+        for (let i = 0; i < frames.length; i++) {
+          const { canvas, delay } = frames[i];
+          const durationUs = Math.round(delay * 1000); // ms → µs
+
+          const vf = new VideoFrame(canvas, { timestamp: timestampUs, duration: durationUs });
+          encoder.encode(vf, { keyFrame: i % keyInterval === 0 });
+          vf.close();
+
+          timestampUs += durationUs;
+          onProgress(55 + Math.floor(((i + 1) / frames.length) * 45));
+
+          // Yield every 10 frames so the UI stays responsive
+          if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+        }
+
+        await encoder.flush();
+        muxer.finalize();
+        resolve(new Blob([target.buffer], { type: 'video/webm' }));
+      } catch (e) {
+        reject(e);
+      }
+    })();
+  });
+};
+
+/**
+ * Fallback encoding path via MediaRecorder.
+ * Must wait in real-time between frames so MediaRecorder gets correct timing.
+ */
+const encodeWithMediaRecorder = (
+  frames: { canvas: HTMLCanvasElement; delay: number }[],
+  width: number,
+  height: number,
+  quality: 'low' | 'medium' | 'high',
+  onProgress: (pct: number) => void
+): Promise<Blob> => {
+  const mimeType = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ].find(t => MediaRecorder.isTypeSupported(t)) ?? 'video/webm';
+
+  const recordCanvas = document.createElement('canvas');
+  recordCanvas.width  = width;
+  recordCanvas.height = height;
+  const rCtx = recordCanvas.getContext('2d')!;
+
+  const stream     = (recordCanvas as any).captureStream(0) as MediaStream;
+  const videoTrack = stream.getVideoTracks()[0] as any;
+  const chunks: Blob[] = [];
+
+  const recorder = new MediaRecorder(stream, {
+    mimeType,
+    videoBitsPerSecond: BITRATES[quality],
+  });
+  recorder.ondataavailable = (e: BlobEvent) => {
+    if (e.data?.size > 0) chunks.push(e.data);
+  };
+
+  return new Promise<Blob>(async (resolve, reject) => {
+    recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+    recorder.onerror = reject;
+    recorder.start();
+
+    for (let i = 0; i < frames.length; i++) {
+      rCtx.drawImage(frames[i].canvas, 0, 0);
+      if (typeof videoTrack.requestFrame === 'function') videoTrack.requestFrame();
+      await new Promise(r => setTimeout(r, frames[i].delay)); // real-time wait
+      onProgress(55 + Math.floor(((i + 1) / frames.length) * 45));
+    }
+
+    recorder.stop();
+  });
+};
+
 export const exportToVideo = async (
   containerSelector: string,
   maxDuration: number,
@@ -271,121 +440,74 @@ export const exportToVideo = async (
   const node = document.querySelector(containerSelector) as HTMLElement;
   if (!node) throw new Error('Diagram container not found.');
 
-  if (typeof MediaRecorder === 'undefined') {
+  if (!supportsWebCodecs() && typeof MediaRecorder === 'undefined') {
     throw new Error(
       language === 'tr'
-        ? 'Bu tarayıcı video kaydını desteklemiyor.'
-        : 'This browser does not support video recording.'
+        ? 'Bu tarayıcı video dışa aktarmayı desteklemiyor.'
+        : 'This browser does not support video export.'
     );
   }
 
   const store = useAppStore.getState();
-  const wasPlaying = store.isPlaying;
+  const wasPlaying  = store.isPlaying;
   const originalTime = store.currentTime;
   if (wasPlaying) store.pausePlayback();
 
   try {
     const customBg = useAppStore.getState().visualData?.canvas?.bgColor;
-    const isDark = document.documentElement.classList.contains('dark');
-    const bgColor = customBg || (isDark ? '#0f172a' : '#f8fafc');
-
-    const bitrates: Record<string, number> = {
-      low:    1_000_000,
-      medium: 3_000_000,
-      high:   8_000_000,
-    };
-
-    // Pick best supported codec
-    const mimeType = [
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm',
-    ].find((t) => MediaRecorder.isTypeSupported(t)) ?? 'video/webm';
+    const isDark   = document.documentElement.classList.contains('dark');
+    const bgColor  = customBg || (isDark ? '#0f172a' : '#f8fafc');
 
     // ── Phase 1: Capture all frames (0-55%) ──────────────────
+    // Pre-fetch font CSS once so each frame uses the correct web fonts.
+    const fontEmbedCSS = await getFontEmbedCSS(node).catch(() => '');
     const frames = await captureFrames(
-      node,
-      maxDuration,
-      fps,
-      1, // always full resolution for video
-      false, // no frame dedup for video — keeps smooth motion
+      node, maxDuration, fps,
+      1,     // full resolution for video
+      false, // no frame dedup — keeps smooth motion
       bgColor,
+      fontEmbedCSS,
       onProgress
     );
 
-    // ── Phase 2: Feed frames into MediaRecorder (55-100%) ─────
     const { width, height } = frames[0].canvas;
 
-    const recordCanvas = document.createElement('canvas');
-    recordCanvas.width  = width;
-    recordCanvas.height = height;
-    const rCtx = recordCanvas.getContext('2d')!;
-
-    // captureStream(0) = manual frame push via requestFrame()
-    const stream = (recordCanvas as any).captureStream(0) as MediaStream;
-    const videoTrack = stream.getVideoTracks()[0] as any;
-
-    const chunks: Blob[] = [];
-    const recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: bitrates[quality],
-    });
-    recorder.ondataavailable = (e: BlobEvent) => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
-
-    recorder.start();
-
-    for (let i = 0; i < frames.length; i++) {
-      rCtx.drawImage(frames[i].canvas, 0, 0);
-      // Push the current canvas frame to the MediaStream
-      if (typeof videoTrack.requestFrame === 'function') {
-        videoTrack.requestFrame();
+    // ── Phase 2: Encode (55-100%) ─────────────────────────────
+    // Try fast WebCodecs path first; fall back to MediaRecorder on failure.
+    let blob: Blob;
+    if (supportsWebCodecs()) {
+      try {
+        blob = await encodeWithWebCodecs(frames, width, height, fps, quality, onProgress);
+      } catch (webCodecsErr) {
+        console.warn('[Video Export] WebCodecs failed, falling back to MediaRecorder:', webCodecsErr);
+        blob = await encodeWithMediaRecorder(frames, width, height, quality, onProgress);
       }
-      // Wait the frame's delay so the video has correct timing
-      await new Promise((r) => setTimeout(r, frames[i].delay));
-      onProgress(55 + Math.floor(((i + 1) / frames.length) * 45));
+    } else {
+      blob = await encodeWithMediaRecorder(frames, width, height, quality, onProgress);
     }
 
-    return new Promise<void>((resolve, reject) => {
-      recorder.onstop = async () => {
-        try {
-          const ext  = mimeType.includes('mp4') ? 'mp4' : 'webm';
-          const blob = new Blob(chunks, { type: mimeType });
-          const fileName = defaultName; // already has .webm extension
-
-          if (isTauri()) {
-            const selectedPath = await save({
-              title: language === 'tr' ? 'Video Olarak Kaydet' : 'Save as Video',
-              defaultPath: fileName,
-              filters: [{ name: 'WebM Video', extensions: [ext] }],
-            });
-            if (selectedPath) {
-              const bytes = new Uint8Array(await blob.arrayBuffer());
-              await writeFile(selectedPath, bytes);
-            }
-          } else {
-            const url = URL.createObjectURL(blob);
-            const a   = document.createElement('a');
-            a.href     = url;
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(url);
-          }
-          resolve();
-        } catch (err) {
-          reject(err);
-        } finally {
-          store.setCurrentTime(originalTime);
-          if (wasPlaying) store.startPlayback();
-        }
-      };
-      recorder.stop();
-    });
-
-  } catch (error) {
+    // ── Phase 3: Save ─────────────────────────────────────────
+    if (isTauri()) {
+      const selectedPath = await save({
+        title:   language === 'tr' ? 'Video Olarak Kaydet' : 'Save as Video',
+        defaultPath: defaultName,
+        filters: [{ name: 'WebM Video', extensions: ['webm'] }],
+      });
+      if (selectedPath) {
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        await writeFile(selectedPath, bytes);
+      }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href     = url;
+      a.download = defaultName;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  } finally {
     store.setCurrentTime(originalTime);
     if (wasPlaying) store.startPlayback();
-    throw error;
   }
 };
+
