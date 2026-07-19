@@ -15,6 +15,7 @@ export const SidebarRight: React.FC = () => {
   const isPlaying = useAppStore((s) => s.isPlaying);
   const schedules = useAppStore((s) => s.schedules);
   const deleteNode = useAppStore((s) => s.deleteNode);
+  const openConfirm = useAppStore((s) => s.openConfirm);
 
   const activeRowRef = useRef<HTMLDivElement>(null);
 
@@ -220,12 +221,19 @@ export const SidebarRight: React.FC = () => {
                   </div>
                   {!isPlaying && (
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
                         const confirmMsg = language === 'tr'
                           ? `"${node.name}" bileşenini diyagramdan silmek istediğinize emin misiniz?`
                           : `Are you sure you want to delete "${node.name}" from the diagram?`;
-                        if (window.confirm(confirmMsg)) {
+                        const confirmed = await openConfirm({
+                          title: language === 'tr' ? 'Bileşeni Sil' : 'Delete Component',
+                          message: confirmMsg,
+                          type: 'danger',
+                          confirmText: language === 'tr' ? 'Sil' : 'Delete',
+                          cancelText: language === 'tr' ? 'İptal' : 'Cancel'
+                        });
+                        if (confirmed) {
                           deleteNode(node.id);
                         }
                       }}

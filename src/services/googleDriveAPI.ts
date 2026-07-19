@@ -336,6 +336,7 @@ export const GoogleDriveService = {
           // Save diagram data
           await StorageService.save_diagram(
             targetPath!, 
+            'default',
             JSON.stringify(remoteWs.logicalData), 
             JSON.stringify(remoteWs.visualData)
           );

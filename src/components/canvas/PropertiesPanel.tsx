@@ -67,6 +67,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const t = translations[language];
   const logicalData = useAppStore((state) => state.logicalData);
   const maxSteps = useAppStore((state) => state.maxSteps);
+  const openConfirm = useAppStore((state) => state.openConfirm);
 
   // --- Node State ---
   const [nodeName, setNodeName] = useState('');
@@ -485,12 +486,19 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             />
                             <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 w-8 text-right">{h.offset}%</span>
                             <button
-                              onClick={() => {
-                                if (connectedHandleIds.has(h.id)) {
-                                  if (!confirm(t.connectedEdgesConfirm)) return;
-                                }
-                                setNodeHandles(nodeHandles.filter(nh => nh.id !== h.id));
-                              }}
+                               onClick={async () => {
+                                 if (connectedHandleIds.has(h.id)) {
+                                   const confirmed = await openConfirm({
+                                     title: language === 'tr' ? 'Bağlantıyı Kopar' : 'Disconnect Edge',
+                                     message: t.connectedEdgesConfirm,
+                                     type: 'warning',
+                                     confirmText: language === 'tr' ? 'Evet, Sil' : 'Yes, Delete',
+                                     cancelText: language === 'tr' ? 'Vazgeç' : 'Cancel'
+                                   });
+                                   if (!confirmed) return;
+                                 }
+                                 setNodeHandles(nodeHandles.filter(nh => nh.id !== h.id));
+                               }}
                               className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 cursor-pointer transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

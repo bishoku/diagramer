@@ -62,6 +62,53 @@ export const useAppStore = create<AppState>()((set, get, store) => {
     visualData: { canvas: { zoom: 1, pan: { x: 0, y: 0 } }, layoutNodes: {}, layoutEdges: {}, timelines: {}, annotations: {} },
     schedules: {},
     
+    // Confirm/Alert State
+    confirmState: null,
+    alertState: null,
+
+    openConfirm: (options) => {
+      return new Promise<boolean>((resolve) => {
+        wrappedSet({
+          confirmState: {
+            isOpen: true,
+            title: options.title,
+            message: options.message,
+            confirmText: options.confirmText,
+            cancelText: options.cancelText,
+            type: options.type || 'info',
+            resolve,
+          },
+        });
+      });
+    },
+    closeConfirm: (value) => {
+      const state = get();
+      if (state.confirmState) {
+        state.confirmState.resolve(value);
+      }
+      wrappedSet({ confirmState: null });
+    },
+    openAlert: (options) => {
+      return new Promise<void>((resolve) => {
+        wrappedSet({
+          alertState: {
+            isOpen: true,
+            title: options.title,
+            message: options.message,
+            okText: options.okText,
+            resolve,
+          },
+        });
+      });
+    },
+    closeAlert: () => {
+      const state = get();
+      if (state.alertState) {
+        state.alertState.resolve();
+      }
+      wrappedSet({ alertState: null });
+    },
+    
     // Google Drive Sync Initial State
     googleUser: savedGoogleUser,
     syncState: 'idle',
@@ -97,6 +144,7 @@ const performSave = async (): Promise<boolean> => {
   try {
     const path = state.currentWorkspace.path;
     const freshState = useAppStore.getState();
+    if (!freshState.activeDiagramId) return false;
     
     await StorageService.save_workspace(JSON.stringify(freshState.currentWorkspace));
     
@@ -108,6 +156,7 @@ const performSave = async (): Promise<boolean> => {
     };
     await StorageService.save_diagram( 
       path,
+      freshState.activeDiagramId,
       JSON.stringify(freshState.logicalData),
       JSON.stringify(freshState.visualData),
       JSON.stringify(diagramFile)

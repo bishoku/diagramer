@@ -9,6 +9,7 @@ export const SharedTopBar: React.FC = () => {
   const cloneSharedToWorkspace = useAppStore((s) => s.cloneSharedToWorkspace);
   const viewMode = useAppStore((s) => s.viewMode);
   const toggleViewMode = useAppStore((s) => s.toggleViewMode);
+  const openAlert = useAppStore((s) => s.openAlert);
 
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [cloneName, setCloneName] = useState(currentWorkspace?.name ? `${currentWorkspace.name} - Kopya` : 'Yeni Diyagram');
@@ -27,7 +28,10 @@ export const SharedTopBar: React.FC = () => {
       setShowCloneModal(false);
     } catch (err) {
       console.error(err);
-      alert(isTr ? 'Klonlama başarısız oldu' : 'Cloning failed');
+      openAlert({
+        title: isTr ? 'Hata' : 'Error',
+        message: isTr ? 'Klonlama başarısız oldu' : 'Cloning failed'
+      });
     } finally {
       setIsCloning(false);
     }

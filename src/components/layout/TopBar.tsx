@@ -26,6 +26,7 @@ import { Share2 } from 'lucide-react';
 
 export const TopBar: React.FC = () => {
   const currentWorkspace = useAppStore((s) => s.currentWorkspace);
+  const activeDiagramId = useAppStore((s) => s.activeDiagramId);
   const isDirty = useAppStore((s) => s.isDirty);
   const isSaving = useAppStore((s: any) => s.isSaving);
   const manualSave = useAppStore((s: any) => s.manualSave);
@@ -48,6 +49,7 @@ export const TopBar: React.FC = () => {
   const timelineOpen = useAppStore((s) => s.timelineOpen);
   const toggleTimeline = useAppStore((s) => s.toggleTimeline);
   const viewMode = useAppStore((s) => s.viewMode);
+  const openAlert = useAppStore((s) => s.openAlert);
   const toggleViewMode = useAppStore((s) => s.toggleViewMode);
   const isReadOnly = useAppStore((s) => s.isReadOnly);
 
@@ -126,10 +128,16 @@ export const TopBar: React.FC = () => {
         a.click();
         URL.revokeObjectURL(url);
       }
-      alert(language === 'tr' ? 'HTML Simülasyonu başarıyla dışa aktarıldı!' : 'HTML Simulation exported successfully!');
+      openAlert({
+        title: language === 'tr' ? 'Başarılı' : 'Success',
+        message: language === 'tr' ? 'HTML Simülasyonu başarıyla dışa aktarıldı!' : 'HTML Simulation exported successfully!'
+      });
     } catch (err) {
       console.error('Error exporting HTML:', err);
-      alert(language === 'tr' ? `Dışa aktarma hatası: ${err}` : `Export error: ${err}`);
+      openAlert({
+        title: language === 'tr' ? 'Hata' : 'Error',
+        message: language === 'tr' ? `Dışa aktarma hatası: ${err}` : `Export error: ${err}`
+      });
     }
   };
 
@@ -141,7 +149,10 @@ export const TopBar: React.FC = () => {
       await exportToPng('.react-flow', defaultName, language);
     } catch (err) {
       console.error('Error exporting PNG:', err);
-      alert(language === 'tr' ? `PNG dışa aktarma hatası: ${err}` : `PNG Export error: ${err}`);
+      openAlert({
+        title: language === 'tr' ? 'Hata' : 'Error',
+        message: language === 'tr' ? `PNG dışa aktarma hatası: ${err}` : `PNG Export error: ${err}`
+      });
     }
   };
 
@@ -169,7 +180,10 @@ export const TopBar: React.FC = () => {
       );
     } catch (err) {
       console.error('Error exporting GIF:', err);
-      alert(language === 'tr' ? `GIF dışa aktarma hatası: ${err}` : `GIF Export error: ${err}`);
+      openAlert({
+        title: language === 'tr' ? 'Hata' : 'Error',
+        message: language === 'tr' ? `GIF dışa aktarma hatası: ${err}` : `GIF Export error: ${err}`
+      });
     } finally {
       setExportProgress(null);
     }
@@ -194,7 +208,10 @@ export const TopBar: React.FC = () => {
       );
     } catch (err) {
       console.error('Error exporting Video:', err);
-      alert(language === 'tr' ? `Video dışa aktarma hatası: ${err}` : `Video Export error: ${err}`);
+      openAlert({
+        title: language === 'tr' ? 'Hata' : 'Error',
+        message: language === 'tr' ? `Video dışa aktarma hatası: ${err}` : `Video Export error: ${err}`
+      });
     } finally {
       setExportProgress(null);
     }
@@ -330,80 +347,84 @@ export const TopBar: React.FC = () => {
 
       {/* ── Center Section: View Switcher ── */}
       <div className="flex-1 flex justify-center min-w-0">
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-0.5 rounded-lg select-none">
-          <button
-            onClick={() => viewMode !== 'freeform' && toggleViewMode()}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
-              viewMode === 'freeform'
-                ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-            }`}
-            title={language === 'tr' ? 'Serbest Stil Görünümü' : 'Free Style View'}
-          >
-            <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden md:inline whitespace-nowrap">{language === 'tr' ? 'Serbest Stil' : 'Free Style'}</span>
-          </button>
-          <button
-            onClick={() => viewMode !== 'sequence' && toggleViewMode()}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
-              viewMode === 'sequence'
-                ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-            }`}
-            title={language === 'tr' ? 'Sequence Diagram Görünümü' : 'Sequence Diagram View'}
-          >
-            <ListOrdered className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden md:inline whitespace-nowrap">{language === 'tr' ? 'Sequence' : 'Sequence'}</span>
-          </button>
-        </div>
+        {activeDiagramId && (
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-0.5 rounded-lg select-none">
+            <button
+              onClick={() => viewMode !== 'freeform' && toggleViewMode()}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                viewMode === 'freeform'
+                  ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+              }`}
+              title={language === 'tr' ? 'Serbest Stil Görünümü' : 'Free Style View'}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline whitespace-nowrap">{language === 'tr' ? 'Serbest Stil' : 'Free Style'}</span>
+            </button>
+            <button
+              onClick={() => viewMode !== 'sequence' && toggleViewMode()}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                viewMode === 'sequence'
+                  ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+              }`}
+              title={language === 'tr' ? 'Sequence Diagram Görünümü' : 'Sequence Diagram View'}
+            >
+              <ListOrdered className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline whitespace-nowrap">{language === 'tr' ? 'Sequence' : 'Sequence'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Right Section ── */}
       <div className="flex items-center gap-1.5 shrink-0">
         {/* Panel toggles */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
-          <button
-            onClick={toggleLeftSidebar}
-            className={`p-1.5 rounded-md cursor-pointer transition-colors ${leftSidebarOpen
-              ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-950 shadow-sm'
-              : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-            }`}
-            title={language === 'tr' ? 'Sol panel' : 'Left panel'}
-          >
-            <PanelLeft className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={toggleTimeline}
-            className={`p-1.5 rounded-md cursor-pointer transition-colors ${timelineOpen
-              ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-950 shadow-sm'
-              : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-            }`}
-            title={language === 'tr' ? 'Zaman çizelgesi' : 'Timeline'}
-          >
-            <PanelBottom className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={toggleRightSidebar}
-            className={`p-1.5 rounded-md cursor-pointer transition-colors ${rightSidebarOpen
-              ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-950 shadow-sm'
-              : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
-            }`}
-            title={language === 'tr' ? 'Sağ panel' : 'Right panel'}
-          >
-            <PanelRight className="w-3.5 h-3.5" />
-          </button>
-          <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-          <button
-            onClick={toggleFullscreen}
-            className="p-1.5 rounded-md cursor-pointer transition-colors text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-            title={language === 'tr' ? 'Tam Ekran' : 'Fullscreen'}
-          >
-            {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
-          </button>
-        </div>
+        {activeDiagramId && (
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
+            <button
+              onClick={toggleLeftSidebar}
+              className={`p-1.5 rounded-md cursor-pointer transition-colors ${leftSidebarOpen
+                ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+              }`}
+              title={language === 'tr' ? 'Sol panel' : 'Left panel'}
+            >
+              <PanelLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={toggleTimeline}
+              className={`p-1.5 rounded-md cursor-pointer transition-colors ${timelineOpen
+                ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+              }`}
+              title={language === 'tr' ? 'Zaman çizelgesi' : 'Timeline'}
+            >
+              <PanelBottom className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={toggleRightSidebar}
+              className={`p-1.5 rounded-md cursor-pointer transition-colors ${rightSidebarOpen
+                ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+              }`}
+              title={language === 'tr' ? 'Sağ panel' : 'Right panel'}
+            >
+              <PanelRight className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+            <button
+              onClick={toggleFullscreen}
+              className="p-1.5 rounded-md cursor-pointer transition-colors text-slate-400 hover:text-slate-650 dark:text-slate-500 dark:hover:text-slate-300"
+              title={language === 'tr' ? 'Tam Ekran' : 'Fullscreen'}
+            >
+              {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        )}
 
         {/* Freeform-only controls */}
-        {currentView === 'diagram' && !isReadOnly && (
+        {activeDiagramId && currentView === 'diagram' && !isReadOnly && (
           <>
             <CanvasBgSelector />
 

@@ -277,7 +277,7 @@ export const exportWorkspace = async (
 export const importWorkspace = async (
   zipData: ArrayBuffer | Uint8Array,
   createWorkspaceFn: (name: string, description: string) => Promise<WorkspaceMeta>,
-  saveDiagramFn: (path: string, logicalJson: string, visualJson: string) => Promise<void>,
+  saveDiagramFn: (path: string, diagramId: string, logicalJson: string, visualJson: string) => Promise<void>,
   resolveConflictsFn: (conflicts: ImportConflict[]) => Promise<Record<string, ConflictResolution>>,
   language: 'tr' | 'en'
 ): Promise<WorkspaceMeta> => {
@@ -396,7 +396,7 @@ export const importWorkspace = async (
       console.info(`[import] Applied ${repairs.length} repair(s):`, repairs);
     }
 
-    await saveDiagramFn(newWs.path, JSON.stringify(repairedLogical), JSON.stringify(repairedVisual));
+    await saveDiagramFn(newWs.path, 'default', JSON.stringify(repairedLogical), JSON.stringify(repairedVisual));
 
     
     return newWs;

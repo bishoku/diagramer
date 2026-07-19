@@ -100,8 +100,8 @@ export const useWelcome = () => {
 
   const runImport = async (zipData: ArrayBuffer | Uint8Array) => {
     try {
-      const saveDiagramFn = async (path: string, logicalJson: string, visualJson: string) => {
-        await StorageService.save_diagram(path, logicalJson, visualJson);
+      const saveDiagramFn = async (path: string, diagramId: string, logicalJson: string, visualJson: string) => {
+        await StorageService.save_diagram(path, diagramId, logicalJson, visualJson);
       };
 
       const resolveConflictsFn = (conflictsList: ImportConflict[]) => {

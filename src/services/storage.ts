@@ -89,31 +89,39 @@ export const StorageService = {
   // ---------------------------------------------------------
   // DIAGRAM DATA
   // ---------------------------------------------------------
-  save_diagram: async (path: string, logicalJson: string, visualJson: string, _diagramFileJson?: string): Promise<void> => {
+  save_diagram: async (path: string, diagramId: string, logicalJson: string, visualJson: string, _diagramFileJson?: string): Promise<void> => {
     if (isTauri()) {
-      await invoke('save_diagram', { path, logicalJson, visualJson });
-      return;
+      await invoke('save_diagram', { path, diagramId, logicalJson, visualJson });
+    } else {
+      // Web Implementation — store both legacy and enveloped formats for compatibility
+      const dataKey = `${WEB_DIAGRAM_PREFIX}${path}_${diagramId}`;
+      const payload = {
+        schemaVersion: JSON.parse(logicalJson).schemaVersion ?? 1,
+        logicalData: JSON.parse(logicalJson),
+        visualData: JSON.parse(visualJson),
+      };
+      localStorage.setItem(dataKey, JSON.stringify(payload));
     }
-    // Web Implementation — store both legacy and enveloped formats for compatibility
-    const dataKey = `${WEB_DIAGRAM_PREFIX}${path}`;
-    const payload = {
-      schemaVersion: JSON.parse(logicalJson).schemaVersion ?? 1,
-      logicalData: JSON.parse(logicalJson),
-      visualData: JSON.parse(visualJson),
-    };
-    localStorage.setItem(dataKey, JSON.stringify(payload));
   },
 
-  load_diagram: async (path: string): Promise<string> => {
+  load_diagram: async (path: string, diagramId: string = 'default'): Promise<string> => {
     if (isTauri()) {
-      return await invoke<string>('load_diagram', { path });
+      return await invoke<string>('load_diagram', { path, diagramId });
+    } else {
+      // Web Implementation
+      let dataKey = `${WEB_DIAGRAM_PREFIX}${path}_${diagramId}`;
+      let dataStr = localStorage.getItem(dataKey);
+      
+      // Backward compatibility check
+      if (!dataStr && diagramId === 'default') {
+        const legacyKey = `${WEB_DIAGRAM_PREFIX}${path}`;
+        dataStr = localStorage.getItem(legacyKey);
+      }
+      
+      if (!dataStr) throw new Error('Diagram data not found');
+      // Returns { schemaVersion, logicalData, visualData } as string (legacy: just { logicalData, visualData })
+      return dataStr;
     }
-    // Web Implementation
-    const dataKey = `${WEB_DIAGRAM_PREFIX}${path}`;
-    const dataStr = localStorage.getItem(dataKey);
-    if (!dataStr) throw new Error('Diagram data not found');
-    // Returns { schemaVersion, logicalData, visualData } as string (legacy: just { logicalData, visualData })
-    return dataStr;
   },
 
   // ---------------------------------------------------------

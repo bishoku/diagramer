@@ -39,6 +39,9 @@ export default defineConfig(async () => ({
             purpose: 'any maskable'
           }
         ]
+      },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024
       }
     })
   ],

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { HandleConfig, PortSide } from '../../../types';
 import { MAX_HANDLES_PER_SIDE, MAX_HANDLES_PER_NODE } from '../../../utils/portUtils';
+import { useAppStore } from '../../../store/useAppStore';
 
 const SIDE_LABELS: Record<string, Record<PortSide, string>> = {
   tr: { top: 'Üst', right: 'Sağ', bottom: 'Alt', left: 'Sol' },
@@ -31,6 +32,7 @@ export const ConnectionPointsEditor: React.FC<ConnectionPointsEditorProps> = ({
   language,
   onChange,
 }) => {
+  const openConfirm = useAppStore((s) => s.openConfirm);
   const previewRef = useRef<HTMLDivElement>(null);
   const activeDragRef = useRef<{ handleId: string; side: PortSide } | null>(null);
   // Keep a mutable copy of handles for drag calculations
@@ -183,10 +185,17 @@ export const ConnectionPointsEditor: React.FC<ConnectionPointsEditorProps> = ({
                     />
                     <span className="text-[9px] font-mono text-slate-400 w-7 text-right shrink-0">{h.offset}%</span>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (connectedHandleIds.has(h.id)) {
                           const msg = language === 'tr' ? "Bağlı edge'ler var, emin misiniz?" : 'Connected edges exist. Continue?';
-                          if (!confirm(msg)) return;
+                          const confirmed = await openConfirm({
+                            title: language === 'tr' ? 'Bağlantıyı Kopar' : 'Disconnect Edge',
+                            message: msg,
+                            type: 'warning',
+                            confirmText: language === 'tr' ? 'Evet, Sil' : 'Yes, Delete',
+                            cancelText: language === 'tr' ? 'Vazgeç' : 'Cancel'
+                          });
+                          if (!confirmed) return;
                         }
                         onChange(handles.filter((nh) => nh.id !== h.id));
                       }}

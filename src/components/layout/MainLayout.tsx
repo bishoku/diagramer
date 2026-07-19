@@ -5,6 +5,10 @@ import { RightSidebarShell } from '../sidebar/RightSidebarShell';
 import { useAppStore } from '../../store/useAppStore';
 
 import { DiagramCanvas } from '../canvas/DiagramCanvas';
+import { DiagramTabBar } from './DiagramTabBar';
+import { DiagramDashboard } from './DiagramDashboard';
+import { CreateDiagramModal } from './CreateDiagramModal';
+import { GlobalConfirmAlertModal } from './GlobalConfirmAlertModal';
 import { TimelinePanel } from './TimelinePanel';
 import { Minimize } from 'lucide-react';
 
@@ -31,7 +35,9 @@ export const MainLayout: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const timelineOpen = isFullscreen ? false : _timelineOpen;
+  const openDiagramIds = useAppStore((s) => s.openDiagramIds);
+  const activeDiagramId = useAppStore((s) => s.activeDiagramId);
+  const timelineOpen = isFullscreen ? false : (_timelineOpen && openDiagramIds.length > 0);
   const leftSidebarOpen = isFullscreen ? false : _leftSidebarOpen;
   const rightSidebarOpen = isFullscreen ? false : _rightSidebarOpen;
 
@@ -91,20 +97,27 @@ export const MainLayout: React.FC = () => {
         {/* Center Section: Canvas & Timeline */}
         <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-950">
           
-          {/* Canvas Workspace Area — explicit size required by React Flow */}
-          <div className="flex-1 min-h-0 relative" style={{ overflow: 'hidden' }}>
-            {viewMode === 'freeform' ? (
-              <DiagramCanvas />
-            ) : (
-              <Suspense fallback={
-                <div className="flex items-center justify-center w-full h-full text-slate-400 dark:text-slate-600">
-                  <div className="animate-pulse text-sm font-medium">Loading Sequence Diagram...</div>
-                </div>
-              }>
-                <SequenceDiagramCanvas />
-              </Suspense>
-            )}
-          </div>
+          {/* Diagram Tab Bar */}
+          <DiagramTabBar />
+
+          {/* Canvas Workspace Area or Dashboard */}
+          {openDiagramIds.length === 0 ? (
+            <DiagramDashboard />
+          ) : (
+            <div className="flex-1 min-h-0 relative" style={{ overflow: 'hidden' }}>
+              {viewMode === 'freeform' ? (
+                <DiagramCanvas />
+              ) : (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center w-full h-full text-slate-400 dark:text-slate-600">
+                    <div className="animate-pulse text-sm font-medium">Loading Sequence Diagram...</div>
+                  </div>
+                }>
+                  <SequenceDiagramCanvas />
+                </Suspense>
+              )}
+            </div>
+          )}
 
           {/* Resizer Splitter Bar */}
           {timelineOpen && (
@@ -117,12 +130,14 @@ export const MainLayout: React.FC = () => {
           )}
 
           {/* Timeline Animation Panel */}
-          <div 
-            style={{ height: timelineOpen ? timelineHeight : 'auto' }}
-            className="border-t border-slate-200 dark:border-slate-800 z-10 shrink-0 select-none overflow-hidden"
-          >
-            <TimelinePanel forceCollapsed={isFullscreen} />
-          </div>
+          {activeDiagramId && (
+            <div 
+              style={{ height: timelineOpen ? timelineHeight : 'auto' }}
+              className="border-t border-slate-200 dark:border-slate-800 z-10 shrink-0 select-none overflow-hidden"
+            >
+              <TimelinePanel forceCollapsed={isFullscreen} />
+            </div>
+          )}
           
         </main>
 
@@ -130,6 +145,12 @@ export const MainLayout: React.FC = () => {
         {rightSidebarOpen && <RightSidebarShell />}
 
       </div>
+      
+      {/* Create Diagram Name Modal */}
+      <CreateDiagramModal />
+
+      {/* Global Confirm and Alert Modals */}
+      <GlobalConfirmAlertModal />
     </div>
   );
 };

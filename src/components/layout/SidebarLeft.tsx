@@ -8,12 +8,15 @@ import { StorageService, isTauri } from '../../services/storage';
 import { CustomComponentTemplate } from '../../types';
 import { CustomSvgRenderer } from '../canvas/CustomSvgRenderer';
 import { NodeRegistry } from '../../registry/NodeRegistry';
+import { SidebarDiagrams } from '../sidebar/SidebarDiagrams';
 
 export const SidebarLeft: React.FC = () => {
   const language = useAppStore((s) => s.language);
   const startDrag = useAppStore((s) => s.startDrag);
   const pendingDrop = useAppStore((s) => s.pendingDrop);
   const leftSidebarOpen = useAppStore((s) => s.leftSidebarOpen);
+  const openConfirm = useAppStore((s) => s.openConfirm);
+  const openAlert = useAppStore((s) => s.openAlert);
   
   const libraryComponentsList = useAppStore((s: any) => s.libraryComponents);
   const setView = useAppStore((s: any) => s.setView);
@@ -60,11 +63,17 @@ export const SidebarLeft: React.FC = () => {
         const state = useAppStore.getState() as any;
         await state.loadLibrary();
       } else {
-        alert('Invalid component file structure.');
+        openAlert({
+          title: language === 'tr' ? 'Hata' : 'Error',
+          message: language === 'tr' ? 'Geçersiz bileşen yapısı.' : 'Invalid component file structure.'
+        });
       }
     } catch (err) {
       console.error('Import parse error:', err);
-      alert('Failed to parse component file.');
+      openAlert({
+        title: language === 'tr' ? 'Hata' : 'Error',
+        message: language === 'tr' ? 'Bileşen dosyası ayrıştırılamadı.' : 'Failed to parse component file.'
+      });
     }
   };
 
@@ -140,7 +149,14 @@ export const SidebarLeft: React.FC = () => {
     const confirmMsg = language === 'tr' 
       ? 'Bu özel bileşeni silmek istediğinize emin misiniz?' 
       : 'Are you sure you want to delete this custom component?';
-    if (window.confirm(confirmMsg)) {
+    const confirmed = await openConfirm({
+      title: language === 'tr' ? 'Bileşeni Sil' : 'Delete Component',
+      message: confirmMsg,
+      type: 'danger',
+      confirmText: language === 'tr' ? 'Sil' : 'Delete',
+      cancelText: language === 'tr' ? 'İptal' : 'Cancel'
+    });
+    if (confirmed) {
       await deleteComponentFromLibrary(compId);
     }
   };
@@ -186,6 +202,8 @@ export const SidebarLeft: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <SidebarDiagrams />
+        
         <div className="space-y-2">
           <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider pl-1">
             {language === 'tr' ? 'Varsayılan Bileşenler' : 'Standard Components'}

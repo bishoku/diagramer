@@ -8,6 +8,7 @@ import { useNodeAnimation } from './hooks';
 import { getNodeDefinition, getDefaultIcon } from '../../registry/NodeRegistry';
 import { resolveHandles, getHandleStyle } from '../../utils/portUtils';
 import { PortSide } from '../../types';
+import { findDeviconItem, getDeviconComponent } from '../../registry/DeviconRegistry';
 
 interface BaseNodeProps {
   id: string;
@@ -198,15 +199,44 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
               : 'w-8 h-8'
           }`}
         >
-          {customTemplate ? (
-            <CustomSvgRenderer
-              layers={customTemplate.layers}
-              width={customTemplate.dimensions.width}
-              height={customTemplate.dimensions.height}
-            />
-          ) : (
-            getIcon(type, style.text, displayMode === 'icon-only', customStyles.iconColor)
-          )}
+          {(() => {
+            if (customStyles.productIcon) {
+              const item = findDeviconItem(customStyles.productIcon);
+              if (item) {
+                const IconComponent = getDeviconComponent(
+                  item,
+                  customStyles.productIconColored !== false,
+                  !!customStyles.productIconWordmark
+                );
+                if (IconComponent) {
+                  const size = displayMode === 'icon-only' ? '80%' : 26;
+                  const isColored = customStyles.productIconColored !== false;
+                  const isHex = customStyles.iconColor?.startsWith('#');
+                  const finalIconColor = isHex 
+                    ? customStyles.iconColor 
+                    : (customStyles.iconColor ? themeStyles[customStyles.iconColor]?.text : style.text);
+                  return (
+                    <div 
+                      className={`flex items-center justify-center w-full h-full ${!isColored && !isHex ? finalIconColor : ''}`}
+                      style={!isColored && isHex ? { color: finalIconColor } : undefined}
+                    >
+                      <IconComponent size={size} />
+                    </div>
+                  );
+                }
+              }
+            }
+            if (customTemplate) {
+              return (
+                <CustomSvgRenderer
+                  layers={customTemplate.layers}
+                  width={customTemplate.dimensions.width}
+                  height={customTemplate.dimensions.height}
+                />
+              );
+            }
+            return getIcon(type, style.text, displayMode === 'icon-only', customStyles.iconColor);
+          })()}
         </div>
 
         {/* Divider (only for horizontal layout with text) */}

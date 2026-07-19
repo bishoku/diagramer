@@ -191,7 +191,10 @@ export const createStudioSlice: StateCreator<AppState, [], [], StudioSlice> = (s
       await get().loadLibrary();
     } catch (err: any) {
       console.error('Error saving component to library:', err);
-      alert(`Save component failed: ${err.message || JSON.stringify(err) || err.toString()}`);
+      get().openAlert({
+        title: 'Error',
+        message: `Save component failed: ${err.message || JSON.stringify(err) || err.toString()}`
+      });
     }
   },
 

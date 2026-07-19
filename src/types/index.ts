@@ -79,6 +79,9 @@ export interface VisualNode {
     borderColor?: string;
     borderStyle?: 'solid' | 'dashed' | 'dotted';
     borderRadius?: number;
+    productIcon?: string;
+    productIconColored?: boolean;
+    productIconWordmark?: boolean;
   };
 }
 
@@ -168,6 +171,9 @@ export interface ActiveNodeProperties {
     borderColor?: string;
     borderStyle?: 'solid' | 'dashed' | 'dotted';
     borderRadius?: number;
+    productIcon?: string;
+    productIconColored?: boolean;
+    productIconWordmark?: boolean;
   };
   isNew?: boolean;
   properties?: Record<string, unknown>;
@@ -239,8 +245,11 @@ export interface CustomComponentTemplate {
 export interface AppState {
   currentWorkspace: WorkspaceMeta | null;
   recentWorkspaces: WorkspaceMeta[];
-  currentDiagram: DiagramMeta | null;
+  diagrams: DiagramMeta[];
+  activeDiagramId: string | null;
+  openDiagramIds: string[];
   isDirty: boolean;
+  isCreateDiagramModalOpen: boolean;
   
   // Canvas View Mode
   viewMode: 'freeform' | 'sequence' | 'import-preview';
@@ -292,9 +301,17 @@ export interface AppState {
   
   // Actions
   setWorkspace: (ws: WorkspaceMeta | null) => void;
-  setDiagram: (diagram: DiagramMeta | null) => void;
+  setDiagrams: (diagrams: DiagramMeta[]) => void;
+  setActiveDiagramId: (id: string | null) => void;
+  setOpenDiagramIds: (ids: string[]) => void;
   setDirty: (status: boolean) => void;
   setRecentWorkspaces: (workspaces: WorkspaceMeta[]) => void;
+  setCreateDiagramModalOpen: (open: boolean) => void;
+  createDiagram: (name: string) => Promise<DiagramMeta>;
+  renameDiagram: (id: string, name: string) => Promise<void>;
+  deleteDiagram: (id: string) => Promise<void>;
+  switchDiagram: (id: string) => Promise<void>;
+  closeDiagram: (id: string) => void;
   
   // Async Operations
   createWorkspace: (name: string, description: string) => Promise<WorkspaceMeta>;
@@ -439,4 +456,42 @@ export interface AppState {
   setSyncState: (state: 'idle' | 'syncing' | 'error' | 'conflict') => void;
   setLastSyncedAt: (timestamp: number | null) => void;
   setHasUnsyncedChanges: (hasUnsynced: boolean) => void;
+
+  // Confirm/Alert state
+  confirmState: {
+    isOpen: boolean;
+    title: string;
+    message: any;
+    confirmText?: string;
+    cancelText?: string;
+    type?: 'danger' | 'info' | 'warning';
+    resolve: (value: boolean) => void;
+  } | null;
+  alertState: {
+    isOpen: boolean;
+    title: string;
+    message: any;
+    okText?: string;
+    resolve: () => void;
+  } | null;
+
+  // Confirm/Alert Actions
+  openConfirm: (options: ConfirmOptions) => Promise<boolean>;
+  closeConfirm: (value: boolean) => void;
+  openAlert: (options: AlertOptions) => Promise<void>;
+  closeAlert: () => void;
+}
+
+export interface ConfirmOptions {
+  title: string;
+  message: any;
+  confirmText?: string;
+  cancelText?: string;
+  type?: 'danger' | 'info' | 'warning';
+}
+
+export interface AlertOptions {
+  title: string;
+  message: any;
+  okText?: string;
 }

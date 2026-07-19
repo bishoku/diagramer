@@ -251,14 +251,21 @@ fn get_global_components_dir(app_handle: AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn load_diagram(path: String) -> Result<String, String> {
+fn load_diagram(path: String, diagram_id: String) -> Result<String, String> {
     let ws_path = Path::new(&path);
     if !ws_path.exists() {
         return Err("Workspace directory does not exist".to_string());
     }
 
-    let logical_file = ws_path.join("logical.json");
-    let visual_file = ws_path.join("visual.json");
+    let diagrams_dir = ws_path.join("diagrams");
+    let mut logical_file = diagrams_dir.join(format!("{}_logical.json", diagram_id));
+    let mut visual_file = diagrams_dir.join(format!("{}_visual.json", diagram_id));
+
+    // Backward compatibility: if the specific diagram files don't exist, check root
+    if !logical_file.exists() && ws_path.join("logical.json").exists() {
+        logical_file = ws_path.join("logical.json");
+        visual_file = ws_path.join("visual.json");
+    }
 
     let logical_content = if logical_file.exists() {
         fs::read_to_string(&logical_file)
@@ -283,14 +290,19 @@ fn load_diagram(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn save_diagram(path: String, logical_json: String, visual_json: String) -> Result<(), String> {
+fn save_diagram(path: String, diagram_id: String, logical_json: String, visual_json: String) -> Result<(), String> {
     let ws_path = Path::new(&path);
     if !ws_path.exists() {
         return Err("Workspace directory does not exist".to_string());
     }
 
-    let logical_file = ws_path.join("logical.json");
-    let visual_file = ws_path.join("visual.json");
+    let diagrams_dir = ws_path.join("diagrams");
+    if !diagrams_dir.exists() {
+        fs::create_dir_all(&diagrams_dir).map_err(|e| format!("Failed to create diagrams dir: {}", e))?;
+    }
+
+    let logical_file = diagrams_dir.join(format!("{}_logical.json", diagram_id));
+    let visual_file = diagrams_dir.join(format!("{}_visual.json", diagram_id));
 
     // Parse to validate JSON structures
     let logical_val: serde_json::Value = serde_json::from_str(&logical_json)
