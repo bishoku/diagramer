@@ -68,6 +68,10 @@ export interface WorkspaceSlice {
   loadSharedDiagram: (logicalData: import('../../types').LogicalDiagram, visualData: import('../../types').VisualDiagram) => void;
   loadImportPreview: (logicalData: import('../../types').LogicalDiagram, visualData: import('../../types').VisualDiagram) => void;
   cloneSharedToWorkspace: (name: string) => Promise<import('../../types').WorkspaceMeta>;
+  copyDiagramToWorkspace: (diagramId: string, targetWorkspacePath: string, newName?: string) => Promise<string>;
+  moveDiagramToWorkspace: (diagramId: string, targetWorkspacePath: string, newName?: string) => Promise<string>;
+  importPreviewToWorkspace: (targetWorkspacePath: string, diagramName: string) => Promise<string>;
+  importPreviewToNewWorkspace: (workspaceName: string, diagramName: string) => Promise<{ ws: WorkspaceMeta; diagramId: string }>;
   manualSave: () => Promise<void>;
   deleteWorkspace: (path: string) => Promise<void>;
 }
@@ -565,5 +569,156 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       console.error('Error deleting workspace:', err);
       throw err;
     }
+  },
+
+  copyDiagramToWorkspace: async (diagramId: string, targetWorkspacePath: string, newName?: string) => {
+    const state = get();
+    if (!state.currentWorkspace) throw new Error("No active workspace");
+    const sourceWorkspacePath = state.currentWorkspace.path;
+
+    let logicalData: any;
+    let visualData: any;
+
+    if (state.activeDiagramId === diagramId) {
+      logicalData = state.logicalData;
+      visualData = state.visualData;
+    } else {
+      const diagJson = await StorageService.load_diagram(sourceWorkspacePath, diagramId);
+      const diag = JSON.parse(diagJson);
+      if (diag.logicalData) {
+        logicalData = diag.logicalData;
+        visualData = diag.visualData;
+      } else if (diag.logical) {
+        logicalData = diag.logical;
+        visualData = diag.visual;
+      } else {
+        logicalData = diag;
+        visualData = {};
+      }
+    }
+
+    const sourceDiagMeta = state.diagrams.find(d => d.id === diagramId);
+    const baseName = newName || sourceDiagMeta?.name || "Copied Diagram";
+
+    let targetDiagrams: import('../../types').DiagramMeta[] = [];
+    try {
+      const targetIndexStr = await StorageService.read_text_file(`${targetWorkspacePath}/diagrams/index.json`);
+      targetDiagrams = JSON.parse(targetIndexStr).diagrams || [];
+    } catch (e) {
+      // Fallback
+    }
+
+    let finalName = baseName;
+    let counter = 1;
+    const existingNames = new Set(targetDiagrams.map(d => d.name));
+    while (existingNames.has(finalName)) {
+      finalName = `${baseName} (copy ${counter})`;
+      counter++;
+    }
+
+    const newId = `diagram_${Date.now()}`;
+    const newDiagramMeta: import('../../types').DiagramMeta = {
+      id: newId,
+      name: finalName,
+      updatedAt: new Date().toISOString()
+    };
+
+    await StorageService.save_diagram(
+      targetWorkspacePath,
+      newId,
+      JSON.stringify(logicalData),
+      JSON.stringify(visualData)
+    );
+
+    targetDiagrams.push(newDiagramMeta);
+    await StorageService.save_text_file(
+      `${targetWorkspacePath}/diagrams/index.json`,
+      JSON.stringify({ diagrams: targetDiagrams })
+    );
+
+    if (state.currentWorkspace.path === targetWorkspacePath) {
+      set({ diagrams: targetDiagrams });
+    }
+    return newId;
+  },
+
+  moveDiagramToWorkspace: async (diagramId: string, targetWorkspacePath: string, newName?: string) => {
+    const state = get();
+    if (!state.currentWorkspace) throw new Error("No active workspace");
+    const sourceWorkspacePath = state.currentWorkspace.path;
+
+    const newId = await get().copyDiagramToWorkspace(diagramId, targetWorkspacePath, newName);
+
+    if (state.currentWorkspace.path === sourceWorkspacePath) {
+      await get().deleteDiagram(diagramId);
+    } else {
+      try {
+        const sourceIndexStr = await StorageService.read_text_file(`${sourceWorkspacePath}/diagrams/index.json`);
+        const sourceDiagrams = JSON.parse(sourceIndexStr).diagrams || [];
+        const updatedSourceDiagrams = sourceDiagrams.filter((d: any) => d.id !== diagramId);
+        await StorageService.save_text_file(`${sourceWorkspacePath}/diagrams/index.json`, JSON.stringify({ diagrams: updatedSourceDiagrams }));
+      } catch (e) {
+        console.error("Failed to clean up source workspace diagrams index:", e);
+      }
+    }
+    return newId;
+  },
+
+  importPreviewToWorkspace: async (targetWorkspacePath: string, diagramName: string) => {
+    const state = get();
+    const logicalJson = JSON.stringify(state.logicalData);
+    const visualJson = JSON.stringify(state.visualData);
+
+    let targetDiagrams: import('../../types').DiagramMeta[] = [];
+    try {
+      const targetIndexStr = await StorageService.read_text_file(`${targetWorkspacePath}/diagrams/index.json`);
+      targetDiagrams = JSON.parse(targetIndexStr).diagrams || [];
+    } catch (e) {
+      // Fallback
+    }
+
+    const baseName = diagramName || "Imported Diagram";
+    let finalName = baseName;
+    let counter = 1;
+    const existingNames = new Set(targetDiagrams.map(d => d.name));
+    while (existingNames.has(finalName)) {
+      finalName = `${baseName} (copy ${counter})`;
+      counter++;
+    }
+
+    const newId = `diagram_${Date.now()}`;
+    const newDiagramMeta: import('../../types').DiagramMeta = {
+      id: newId,
+      name: finalName,
+      updatedAt: new Date().toISOString()
+    };
+
+    await StorageService.save_diagram(targetWorkspacePath, newId, logicalJson, visualJson);
+
+    targetDiagrams.push(newDiagramMeta);
+    await StorageService.save_text_file(
+      `${targetWorkspacePath}/diagrams/index.json`,
+      JSON.stringify({ diagrams: targetDiagrams })
+    );
+
+    return newId;
+  },
+
+  importPreviewToNewWorkspace: async (workspaceName: string, diagramName: string) => {
+    const state = get();
+    const resJson = await StorageService.create_workspace(workspaceName, state.currentWorkspace?.description || '');
+    const ws: WorkspaceMeta = JSON.parse(resJson);
+
+    const logicalJson = JSON.stringify(state.logicalData);
+    const visualJson = JSON.stringify(state.visualData);
+
+    const diagramId = 'default';
+    await StorageService.save_diagram(ws.path, diagramId, logicalJson, visualJson);
+
+    const defaultDiagram = { id: diagramId, name: diagramName || 'Default Diagram', updatedAt: new Date().toISOString() };
+    await StorageService.save_text_file(`${ws.path}/diagrams/index.json`, JSON.stringify({ diagrams: [defaultDiagram] }));
+
+    await get().fetchRecentWorkspaces();
+    return { ws, diagramId };
   }
 });

@@ -319,6 +319,10 @@ export interface AppState {
   fetchRecentWorkspaces: () => Promise<void>;
   saveWorkspaceDetails: (name: string, description: string) => Promise<void>;
   deleteWorkspace: (path: string) => Promise<void>;
+  copyDiagramToWorkspace: (diagramId: string, targetWorkspacePath: string, newName?: string) => Promise<string>;
+  moveDiagramToWorkspace: (diagramId: string, targetWorkspacePath: string, newName?: string) => Promise<string>;
+  importPreviewToWorkspace: (targetWorkspacePath: string, diagramName: string) => Promise<string>;
+  importPreviewToNewWorkspace: (workspaceName: string, diagramName: string) => Promise<{ ws: WorkspaceMeta; diagramId: string }>;
   
   // Preferences Operations
   changeLanguage: (lang: Language) => Promise<void>;

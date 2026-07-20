@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { 
   Plus, Edit2, Trash2, Calendar, FileJson, 
-  ArrowUpRight, Check, X, LayoutGrid 
+  ArrowUpRight, Check, X, LayoutGrid, ArrowRightLeft
 } from 'lucide-react';
+import { WorkspacePickerModal } from './WorkspacePickerModal';
+import { StorageService } from '../../services/storage';
 
 export const DiagramDashboard: React.FC = () => {
   const currentWorkspace = useAppStore((s) => s.currentWorkspace);
@@ -15,8 +17,29 @@ export const DiagramDashboard: React.FC = () => {
   const language = useAppStore((s) => s.language);
   const openConfirm = useAppStore((s) => s.openConfirm);
 
+  const copyDiagramToWorkspace = useAppStore((s) => s.copyDiagramToWorkspace);
+  const moveDiagramToWorkspace = useAppStore((s) => s.moveDiagramToWorkspace);
+  const loadWorkspace = useAppStore((s) => s.loadWorkspace);
+  const createWorkspace = useAppStore((s) => s.createWorkspace);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Picker modal states
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerDiagId, setPickerDiagId] = useState<string | null>(null);
+  const [pickerDiagName, setPickerDiagName] = useState('');
+  const [pickerMode, setPickerMode] = useState<'copy' | 'move'>('copy');
+
+  // Notification states
+  const [notification, setNotification] = useState<{
+    message: string;
+    actionText: string;
+    targetWorkspacePath: string;
+    targetDiagramId: string;
+  } | null>(null);
 
   // Local translations for dashboard elements
   const localT = {
@@ -75,6 +98,103 @@ export const DiagramDashboard: React.FC = () => {
     }
   };
 
+  const handleOpenPicker = (id: string, name: string, mode: 'copy' | 'move') => {
+    setPickerDiagId(id);
+    setPickerDiagName(name);
+    setPickerMode(mode);
+    setPickerOpen(true);
+  };
+
+  const handlePickerConfirm = async (
+    targetWorkspacePath: string | null,
+    _targetWorkspaceName: string,
+    isNew: boolean,
+    newWorkspaceName?: string,
+    targetDiagramName?: string
+  ) => {
+    if (!pickerDiagId) return;
+    const finalDiagName = targetDiagramName || pickerDiagName;
+    const sourcePath = currentWorkspace.path;
+
+    // Load current diagram data to memory
+    let logicalData: any;
+    let visualData: any;
+
+    const state = useAppStore.getState();
+    if (state.activeDiagramId === pickerDiagId) {
+      logicalData = state.logicalData;
+      visualData = state.visualData;
+    } else {
+      const diagJson = await StorageService.load_diagram(sourcePath, pickerDiagId);
+      const diag = JSON.parse(diagJson);
+      logicalData = diag.logicalData || diag.logical || diag;
+      visualData = diag.visualData || diag.visual || {};
+    }
+
+    if (isNew && newWorkspaceName) {
+      const newWs = await createWorkspace(newWorkspaceName, '');
+      
+      // Save diagram into the new workspace as default
+      await StorageService.save_diagram(
+        newWs.path,
+        'default',
+        JSON.stringify(logicalData),
+        JSON.stringify(visualData)
+      );
+
+      const defaultDiag = { id: 'default', name: finalDiagName, updatedAt: new Date().toISOString() };
+      await StorageService.save_text_file(`${newWs.path}/diagrams/index.json`, JSON.stringify({ diagrams: [defaultDiag] }));
+
+      // Refresh store state for diagrams list
+      useAppStore.setState({
+        diagrams: [defaultDiag],
+        activeDiagramId: 'default',
+        openDiagramIds: ['default'],
+        logicalData: logicalData,
+        visualData: visualData,
+        isDirty: false
+      });
+
+      if (pickerMode === 'move') {
+        try {
+          const sourceIndexStr = await StorageService.read_text_file(`${sourcePath}/diagrams/index.json`);
+          const sourceDiagrams = JSON.parse(sourceIndexStr).diagrams || [];
+          const updatedSourceDiagrams = sourceDiagrams.filter((d: any) => d.id !== pickerDiagId);
+          await StorageService.save_text_file(`${sourcePath}/diagrams/index.json`, JSON.stringify({ diagrams: updatedSourceDiagrams }));
+        } catch (e) {
+          console.error("Failed to clean up source workspace diagrams index:", e);
+        }
+      }
+    } else if (targetWorkspacePath) {
+      let targetDiagId = '';
+      if (pickerMode === 'copy') {
+        targetDiagId = await copyDiagramToWorkspace(pickerDiagId, targetWorkspacePath, finalDiagName);
+      } else {
+        targetDiagId = await moveDiagramToWorkspace(pickerDiagId, targetWorkspacePath, finalDiagName);
+      }
+
+      setNotification({
+        message: pickerMode === 'copy'
+          ? (language === 'tr' ? `"${finalDiagName}" kopyalandı.` : `"${finalDiagName}" copied.`)
+          : (language === 'tr' ? `"${finalDiagName}" taşındı.` : `"${finalDiagName}" moved.`),
+        actionText: language === 'tr' ? "Workspace'e Git" : "Go to Workspace",
+        targetWorkspacePath,
+        targetDiagramId: targetDiagId
+      });
+    }
+  };
+
+  const handleGoToWorkspace = async (path: string, diagId: string) => {
+    setNotification(null);
+    try {
+      await loadWorkspace(path);
+      const switchDiagram = useAppStore.getState().switchDiagram;
+      await switchDiagram(diagId);
+    } catch (e) {
+      console.error("Failed to switch to workspace/diagram:", e);
+    }
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     try {
@@ -108,6 +228,26 @@ export const DiagramDashboard: React.FC = () => {
           </div>
         </div>
 
+        {notification && (
+          <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-850 rounded-2xl text-sm flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+            <span className="text-slate-700 dark:text-slate-300 font-semibold">{notification.message}</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleGoToWorkspace(notification.targetWorkspacePath, notification.targetDiagramId)}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl font-bold text-xs cursor-pointer shadow-sm transition-colors"
+              >
+                {notification.actionText}
+              </button>
+              <button
+                onClick={() => setNotification(null)}
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-650 dark:text-slate-400 border border-slate-250 dark:border-slate-800 rounded-xl font-bold text-xs cursor-pointer transition-colors"
+              >
+                {language === 'tr' ? 'Kapat' : 'Close'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Diagrams Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           
@@ -135,7 +275,7 @@ export const DiagramDashboard: React.FC = () => {
               <div
                 key={diag.id}
                 onClick={() => !isEditing && switchDiagram(diag.id)}
-                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 rounded-2xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-300 hover:shadow-md hover:scale-[1.01] hover:border-indigo-500/30 dark:hover:border-indigo-500/20 group min-h-[180px] relative overflow-hidden"
+                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 rounded-2xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-300 hover:shadow-md hover:scale-[1.01] hover:border-indigo-500/30 dark:hover:border-indigo-500/20 group min-h-[180px] relative overflow-hidden"
               >
                 
                 {/* Visual Accent */}
@@ -149,7 +289,7 @@ export const DiagramDashboard: React.FC = () => {
                     
                     {/* Action buttons on card hover */}
                     <div 
-                      className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity relative"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
@@ -159,6 +299,46 @@ export const DiagramDashboard: React.FC = () => {
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
+
+                      {/* Move / Copy dropdown */}
+                      <div className="relative inline-block">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuId(activeMenuId === diag.id ? null : diag.id);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                          title={language === 'tr' ? 'Taşı / Kopyala' : 'Move / Copy'}
+                        >
+                          <ArrowRightLeft className="w-3.5 h-3.5" />
+                        </button>
+                        {activeMenuId === diag.id && (
+                          <>
+                            <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); }} />
+                            <div className="absolute right-0 mt-1 w-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg z-30 py-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => {
+                                  handleOpenPicker(diag.id, diag.name, 'copy');
+                                  setActiveMenuId(null);
+                                }}
+                                className="w-full px-3 py-1.5 text-left text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                {language === 'tr' ? 'Kopyala' : 'Copy'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleOpenPicker(diag.id, diag.name, 'move');
+                                  setActiveMenuId(null);
+                                }}
+                                className="w-full px-3 py-1.5 text-left text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                {language === 'tr' ? 'Taşı' : 'Move'}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
                       {diagrams.length > 1 && (
                         <button
                           onClick={() => handleDelete(diag.id, diag.name)}
@@ -185,7 +365,7 @@ export const DiagramDashboard: React.FC = () => {
                           if (e.key === 'Enter') handleSaveEdit();
                           if (e.key === 'Escape') setEditingId(null);
                         }}
-                        className="flex-1 bg-slate-50 dark:bg-slate-950 border border-indigo-450 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-slate-200 focus:outline-none"
+                        className="flex-1 bg-slate-550 dark:bg-slate-950 border border-indigo-400 rounded-lg px-2 py-1 text-xs text-slate-850 dark:text-slate-200 focus:outline-none"
                       />
                       <button 
                         onClick={handleSaveEdit} 
@@ -230,6 +410,20 @@ export const DiagramDashboard: React.FC = () => {
         </div>
 
       </div>
+
+      {pickerOpen && pickerDiagId && (
+        <WorkspacePickerModal
+          isOpen={pickerOpen}
+          onClose={() => {
+            setPickerOpen(false);
+            setPickerDiagId(null);
+          }}
+          mode={pickerMode}
+          diagramName={pickerDiagName}
+          currentWorkspacePath={currentWorkspace.path}
+          onConfirm={handlePickerConfirm}
+        />
+      )}
     </div>
   );
 };

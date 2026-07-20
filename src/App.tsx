@@ -8,6 +8,7 @@ import { ShareLoader } from './components/share/ShareLoader';
 
 import { SharedDiagramLayout } from './components/layout/SharedDiagramLayout';
 import { ImportPreviewLayout } from './components/layout/ImportPreviewLayout';
+import { GlobalConfirmAlertModal } from './components/layout/GlobalConfirmAlertModal';
 
 function App() {
   const currentWorkspace = useAppStore((state) => state.currentWorkspace);
@@ -65,6 +66,7 @@ function App() {
     return (
       <>
         <ShareLoader />
+        <GlobalConfirmAlertModal />
         <WelcomeScreen />
       </>
     );
@@ -73,6 +75,7 @@ function App() {
   return (
     <>
       <ShareLoader />
+      <GlobalConfirmAlertModal />
       {viewMode === 'import-preview' ? (
         <ImportPreviewLayout />
       ) : isReadOnly ? (

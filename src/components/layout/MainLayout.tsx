@@ -8,7 +8,6 @@ import { DiagramCanvas } from '../canvas/DiagramCanvas';
 import { DiagramTabBar } from './DiagramTabBar';
 import { DiagramDashboard } from './DiagramDashboard';
 import { CreateDiagramModal } from './CreateDiagramModal';
-import { GlobalConfirmAlertModal } from './GlobalConfirmAlertModal';
 import { TimelinePanel } from './TimelinePanel';
 import { Minimize } from 'lucide-react';
 
@@ -148,9 +147,6 @@ export const MainLayout: React.FC = () => {
       
       {/* Create Diagram Name Modal */}
       <CreateDiagramModal />
-
-      {/* Global Confirm and Alert Modals */}
-      <GlobalConfirmAlertModal />
     </div>
   );
 };

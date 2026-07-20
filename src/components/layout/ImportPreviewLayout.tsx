@@ -4,6 +4,8 @@ import { DiagramCanvas } from '../canvas/DiagramCanvas';
 import { TimelinePanel } from './TimelinePanel';
 import { X, Save, Activity } from 'lucide-react';
 import { availableAdapters } from '../../adapters';
+import { translations } from '../../i18n/translations';
+import { WorkspacePickerModal } from './WorkspacePickerModal';
 
 import { FilterAST, AttributeMetadata, NodeTypeMappingRule } from '../../adapters/types';
 import { ActiveFiltersBar } from '../filters/ActiveFiltersBar';
@@ -15,12 +17,18 @@ export const ImportPreviewLayout: React.FC = () => {
   const importRawData = useAppStore(s => s.importRawData);
   const importAdapterId = useAppStore(s => s.importAdapterId);
   const loadImportPreview = useAppStore(s => s.loadImportPreview);
-  const cloneSharedToWorkspace = useAppStore(s => s.cloneSharedToWorkspace);
   const setViewMode = useAppStore(s => s.setViewMode);
   const setImportState = useAppStore(s => s.setImportState);
   const timelineHeight = useAppStore((s) => s.timelineHeight);
   const timelineOpen = useAppStore((s: any) => s.timelineOpen);
   const setTimelineHeight = useAppStore((s) => s.setTimelineHeight);
+
+  const loadWorkspace = useAppStore(s => s.loadWorkspace);
+  const openConfirm = useAppStore(s => s.openConfirm);
+  const language = useAppStore(s => s.language);
+  const fetchRecentWorkspaces = useAppStore(s => s.fetchRecentWorkspaces);
+  const importPreviewToWorkspace = useAppStore(s => s.importPreviewToWorkspace);
+  const importPreviewToNewWorkspace = useAppStore(s => s.importPreviewToNewWorkspace);
 
   const [filterAst, setFilterAst] = useState<FilterAST | null>(null);
   const [attributes, setAttributes] = useState<AttributeMetadata[]>([]);
@@ -30,11 +38,16 @@ export const ImportPreviewLayout: React.FC = () => {
   const [simulationMultiplier, setSimulationMultiplier] = useState<number>(1);
   
   const [loading, setLoading] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const [isResizing, setIsResizing] = useState(false);
   const resizerRef = useRef<HTMLDivElement>(null);
+
+  const t = translations[language];
+
+  useEffect(() => {
+    fetchRecentWorkspaces();
+  }, [fetchRecentWorkspaces]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -124,20 +137,50 @@ export const ImportPreviewLayout: React.FC = () => {
     setWorkspace(null);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!workspaceName.trim()) return;
-    
+  const handleSaveConfirm = async (
+    targetWorkspacePath: string | null,
+    _targetWorkspaceName: string,
+    isNew: boolean,
+    newWorkspaceName?: string,
+    targetDiagramName?: string
+  ) => {
+    const finalDiagName = targetDiagramName || 'Imported Diagram';
+    let path = targetWorkspacePath;
+    let diagramId = '';
+
     setLoading(true);
     try {
-      await cloneSharedToWorkspace(workspaceName.trim());
-      setViewMode('freeform');
-      setImportState(null, null);
+      if (isNew && newWorkspaceName) {
+        const result = await importPreviewToNewWorkspace(newWorkspaceName, finalDiagName);
+        path = result.ws.path;
+        diagramId = result.diagramId;
+      } else if (targetWorkspacePath) {
+        diagramId = await importPreviewToWorkspace(targetWorkspacePath, finalDiagName);
+      }
+
+      setPickerOpen(false);
+
+      const confirmed = await openConfirm({
+        title: t.goToWorkspace || 'Go to Workspace',
+        message: t.goToWorkspaceQuestion || 'Would you like to go to the workspace?',
+        type: 'info',
+        confirmText: t.yes || 'Yes',
+        cancelText: t.no || 'No'
+      });
+
+      if (confirmed && path && diagramId) {
+        await loadWorkspace(path);
+        const switchDiagram = useAppStore.getState().switchDiagram;
+        await switchDiagram(diagramId);
+        setViewMode('freeform');
+        setImportState(null, null);
+      } else {
+        handleCancel();
+      }
     } catch (err) {
-      console.error("Failed to save workspace", err);
+      console.error("Failed to import preview to workspace", err);
     } finally {
       setLoading(false);
-      setShowSaveModal(false);
     }
   };
 
@@ -160,7 +203,7 @@ export const ImportPreviewLayout: React.FC = () => {
             Cancel
           </button>
           <button
-            onClick={() => setShowSaveModal(true)}
+            onClick={() => setPickerOpen(true)}
             className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg flex items-center gap-2 transition-colors shadow-sm"
           >
             <Save className="w-4 h-4" />
@@ -252,51 +295,14 @@ export const ImportPreviewLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* Save Modal */}
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl transition-all animate-in zoom-in-95 duration-200">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-              <Save className="w-5 h-5 text-indigo-500" />
-              Add to Workspace
-            </h3>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  Workspace Name
-                </label>
-                <input
-                  type="text"
-                  value={workspaceName}
-                  onChange={(e) => setWorkspaceName(e.target.value)}
-                  disabled={loading}
-                  maxLength={50}
-                  autoFocus
-                  placeholder="e.g. Production Trace Analysis"
-                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-200"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSaveModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs cursor-pointer transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-slate-100 font-semibold rounded-xl text-xs cursor-pointer transition-colors flex items-center justify-center gap-2"
-                >
-                  {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                  Create & Import
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {pickerOpen && (
+        <WorkspacePickerModal
+          isOpen={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          mode="add"
+          diagramName={importAdapterId ? `${availableAdapters.find(a => a.id === importAdapterId)?.name || 'Imported'} Diagram` : 'Imported Diagram'}
+          onConfirm={handleSaveConfirm}
+        />
       )}
 
     </div>

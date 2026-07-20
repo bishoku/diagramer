@@ -218,7 +218,21 @@ export const translations = {
     backToHome: "Ana Sayfaya Dön",
     secureDiagram: "Güvenli Diyagram",
     enterPinNotice: "Bu diyagramı görüntülemek için lütfen göndericinin belirlediği PIN kodunu girin.",
-    unlockBtn: "Kilidi Aç"
+    unlockBtn: "Kilidi Aç",
+    moveDiagram: "Diyagramı Taşı",
+    copyDiagram: "Diyagramı Kopyala",
+    moveOrCopy: "Taşı veya Kopyala",
+    selectTargetWorkspace: "Hedef Çalışma Alanını Seçin",
+    diagramMoved: "Diyagram başarıyla taşındı",
+    diagramCopied: "Diyagram başarıyla kopyalandı",
+    goToWorkspace: "Workspace'e Git",
+    goToWorkspaceQuestion: "İlgili çalışma alanına gitmek ister misiniz?",
+    newWorkspace: "Yeni Çalışma Alanı",
+    createNewWorkspace: "Yeni Çalışma Alanı Oluştur",
+    addDiagramToWorkspace: "Workspace'e Ekle",
+    diagramAdded: "Diyagram workspace'e eklendi",
+    yes: "Evet",
+    no: "Hayır"
   },
   en: {
     welcomeTitle: "YADA",
@@ -439,7 +453,21 @@ export const translations = {
     backToHome: "Go Back to Home",
     secureDiagram: "Secure Diagram",
     enterPinNotice: "Please enter the PIN code set by the sender to view this diagram.",
-    unlockBtn: "Unlock"
+    unlockBtn: "Unlock",
+    moveDiagram: "Move Diagram",
+    copyDiagram: "Copy Diagram",
+    moveOrCopy: "Move or Copy",
+    selectTargetWorkspace: "Select Target Workspace",
+    diagramMoved: "Diagram successfully moved",
+    diagramCopied: "Diagram successfully copied",
+    goToWorkspace: "Go to Workspace",
+    goToWorkspaceQuestion: "Would you like to go to the workspace?",
+    newWorkspace: "New Workspace",
+    createNewWorkspace: "Create New Workspace",
+    addDiagramToWorkspace: "Add to Workspace",
+    diagramAdded: "Diagram added to workspace",
+    yes: "Yes",
+    no: "No"
   }
 };
 
