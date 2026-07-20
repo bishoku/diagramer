@@ -18,7 +18,7 @@ interface BaseNodeProps {
 
 const getIcon = (type: string, colorClass: string, isIconOnly: boolean, customColor?: string) => {
   const def = getNodeDefinition(type);
-  const sizeClass = isIconOnly ? 'w-[80%] h-[80%]' : 'w-7 h-7';
+  const sizeClass = isIconOnly ? 'w-[80%] h-[80%]' : 'w-8 h-8';
   const isHex = customColor?.startsWith('#');
   const isPredefined = customColor && !isHex;
   const finalColorClass = isPredefined ? (themeStyles[customColor]?.text ?? colorClass) : colorClass;
@@ -36,41 +36,41 @@ const getIcon = (type: string, colorClass: string, isIconOnly: boolean, customCo
 
 const sideToPosition = (side: PortSide): Position => {
   switch (side) {
-    case 'top':    return Position.Top;
-    case 'right':  return Position.Right;
+    case 'top': return Position.Top;
+    case 'right': return Position.Right;
     case 'bottom': return Position.Bottom;
-    case 'left':   return Position.Left;
+    case 'left': return Position.Left;
   }
 };
 
 const themeStyles: Record<string, { border: string; borderHover: string; ring: string; text: string; bg: string }> = {
-  indigo:  { border: 'border-indigo-500 dark:border-indigo-500/80',  borderHover: 'hover:border-indigo-600 dark:hover:border-indigo-400',  ring: 'ring-indigo-500/10 dark:ring-indigo-500/20 shadow-indigo-100 dark:shadow-indigo-950/40',  text: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-500/5 dark:bg-indigo-500/10' },
+  indigo: { border: 'border-indigo-500 dark:border-indigo-500/80', borderHover: 'hover:border-indigo-600 dark:hover:border-indigo-400', ring: 'ring-indigo-500/10 dark:ring-indigo-500/20 shadow-indigo-100 dark:shadow-indigo-950/40', text: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/5 dark:bg-indigo-500/10' },
   emerald: { border: 'border-emerald-500 dark:border-emerald-500/80', borderHover: 'hover:border-emerald-600 dark:hover:border-emerald-400', ring: 'ring-emerald-500/10 dark:ring-emerald-500/20 shadow-emerald-100 dark:shadow-emerald-950/40', text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/5 dark:bg-emerald-500/10' },
-  rose:    { border: 'border-rose-500 dark:border-rose-500/80',    borderHover: 'hover:border-rose-600 dark:hover:border-rose-400',    ring: 'ring-rose-500/10 dark:ring-rose-500/20 shadow-rose-100 dark:shadow-rose-950/40',    text: 'text-rose-600 dark:text-rose-400',    bg: 'bg-rose-500/5 dark:bg-rose-500/10' },
-  amber:   { border: 'border-amber-500 dark:border-amber-500/80',   borderHover: 'hover:border-amber-600 dark:hover:border-amber-400',   ring: 'ring-amber-500/10 dark:ring-amber-500/20 shadow-amber-100 dark:shadow-amber-950/40',   text: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-500/5 dark:bg-amber-500/10' },
-  violet:  { border: 'border-violet-500 dark:border-violet-500/80',  borderHover: 'hover:border-violet-600 dark:hover:border-violet-400',  ring: 'ring-violet-500/10 dark:ring-violet-500/20 shadow-violet-100 dark:shadow-violet-950/40',  text: 'text-violet-600 dark:text-violet-400',  bg: 'bg-violet-500/5 dark:bg-violet-500/10' },
-  cyan:    { border: 'border-cyan-500 dark:border-cyan-500/80',    borderHover: 'hover:border-cyan-600 dark:hover:border-cyan-400',    ring: 'ring-cyan-500/10 dark:ring-cyan-500/20 shadow-cyan-100 dark:shadow-cyan-950/40',    text: 'text-cyan-600 dark:text-cyan-400',    bg: 'bg-cyan-500/5 dark:bg-cyan-500/10' },
+  rose: { border: 'border-rose-500 dark:border-rose-500/80', borderHover: 'hover:border-rose-600 dark:hover:border-rose-400', ring: 'ring-rose-500/10 dark:ring-rose-500/20 shadow-rose-100 dark:shadow-rose-950/40', text: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/5 dark:bg-rose-500/10' },
+  amber: { border: 'border-amber-500 dark:border-amber-500/80', borderHover: 'hover:border-amber-600 dark:hover:border-amber-400', ring: 'ring-amber-500/10 dark:ring-amber-500/20 shadow-amber-100 dark:shadow-amber-950/40', text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/5 dark:bg-amber-500/10' },
+  violet: { border: 'border-violet-500 dark:border-violet-500/80', borderHover: 'hover:border-violet-600 dark:hover:border-violet-400', ring: 'ring-violet-500/10 dark:ring-violet-500/20 shadow-violet-100 dark:shadow-violet-950/40', text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/5 dark:bg-violet-500/10' },
+  cyan: { border: 'border-cyan-500 dark:border-cyan-500/80', borderHover: 'hover:border-cyan-600 dark:hover:border-cyan-400', ring: 'ring-cyan-500/10 dark:ring-cyan-500/20 shadow-cyan-100 dark:shadow-cyan-950/40', text: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-500/5 dark:bg-cyan-500/10' },
 };
 
 export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) => {
   const name = data?.name ?? 'Node';
   const type = data?.type ?? 'server';
 
-  const connection  = useConnection();
+  const connection = useConnection();
   const isConnecting = !!connection.inProgress;
 
   const { tooltipActive: isProcessing, nodeActive: isNodeActive, tooltipText: activeTooltipText } = useNodeAnimation(id);
 
-  const visualNode     = useAppStore((s: any) => s.visualData.layoutNodes[id]);
-  const themeKey       = visualNode?.theme ?? 'indigo';
-  const displayMode    = visualNode?.displayMode ?? 'default';
+  const visualNode = useAppStore((s: any) => s.visualData.layoutNodes[id]);
+  const themeKey = visualNode?.theme ?? 'indigo';
+  const displayMode = visualNode?.displayMode ?? 'default';
   // orientation: rotation===90 means vertical (narrow+tall), rotation===0 means horizontal
-  const isVertical     = (visualNode?.rotation ?? 0) === 90;
-  const customStyles   = visualNode?.customStyles ?? {};
+  const isVertical = (visualNode?.rotation ?? 0) === 90;
+  const customStyles = visualNode?.customStyles ?? {};
 
   const updateNodeDimensions = useAppStore((s: any) => s.updateNodeDimensions);
-  const libraryComponents    = useAppStore((s: any) => s.libraryComponents);
-  const nodeHandles          = useAppStore((s: any) => {
+  const libraryComponents = useAppStore((s: any) => s.libraryComponents);
+  const nodeHandles = useAppStore((s: any) => {
     return s.visualData.layoutNodes[id]?.handles;
   });
 
@@ -88,18 +88,18 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
 
   const connectedHandles = useMemo(() => new Set(connectedHandlesArray), [connectedHandlesArray]);
 
-  const handles         = useMemo(() => resolveHandles(nodeHandles), [nodeHandles]);
-  const style           = themeStyles[themeKey] ?? themeStyles.indigo;
-  const customTemplate  = libraryComponents.find((c: any) => c.componentId === type);
+  const handles = useMemo(() => resolveHandles(nodeHandles), [nodeHandles]);
+  const style = themeStyles[themeKey] ?? themeStyles.indigo;
+  const customTemplate = libraryComponents.find((c: any) => c.componentId === type);
 
   const isCustomTheme = themeKey.startsWith('#');
 
   const containerStyle: React.CSSProperties = {
     backgroundColor: customStyles.backgroundColor || undefined,
-    borderColor:     customStyles.borderColor     || (isCustomTheme ? themeKey : undefined),
-    borderStyle:     customStyles.borderStyle     || undefined,
-    borderRadius:    customStyles.borderRadius ? `${customStyles.borderRadius}px` : undefined,
-    boxShadow:       (selected && isCustomTheme) ? `0 0 0 3px ${themeKey}33` : undefined,
+    borderColor: customStyles.borderColor || (isCustomTheme ? themeKey : undefined),
+    borderStyle: customStyles.borderStyle || undefined,
+    borderRadius: customStyles.borderRadius ? `${customStyles.borderRadius}px` : undefined,
+    boxShadow: (selected && isCustomTheme) ? `0 0 0 3px ${themeKey}33` : undefined,
   };
 
   // ── Key design principle ──────────────────────────────────────────────────
@@ -142,12 +142,12 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
           but only the SOURCE handle is visible. The TARGET handle is a transparent
           hit-area — this prevents the double-circle artifact on hover. */}
       {handles.map((h) => {
-        const pos          = sideToPosition(h.side);
-        const posStyle     = getHandleStyle(h.side, h.offset);
-        const isConnected  = connectedHandles.has(h.id);
-        const handleClass  = isConnected ? 'handle-connected' : 'handle-idle';
+        const pos = sideToPosition(h.side);
+        const posStyle = getHandleStyle(h.side, h.offset);
+        const isConnected = connectedHandles.has(h.id);
+        const handleClass = isConnected ? 'handle-connected' : 'handle-idle';
         const activeHandle = selected || isConnecting;
-        const sizeClass    = activeHandle ? '!w-4 !h-4' : '!w-2.5 !h-2.5';
+        const sizeClass = activeHandle ? '!w-4 !h-4' : '!w-2.5 !h-2.5';
 
         return (
           <React.Fragment key={h.id}>
@@ -174,30 +174,27 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
       {/* Node card — layout only, zero CSS rotation */}
       <div
         style={containerStyle}
-        className={`w-full h-full rounded-xl text-slate-800 dark:text-slate-100 flex items-center justify-center transition-all duration-200 ${
-          displayMode === 'icon-only'
+        className={`w-full h-full rounded-xl text-slate-800 dark:text-slate-100 flex items-center justify-center transition-all duration-200 ${displayMode === 'icon-only'
             ? `bg-transparent border-transparent ${selected ? 'ring-2 ring-indigo-500/50' : ''}`
             : `border-2 shadow-md dark:shadow-xl ${
-                // Vertical layout: icon on top, text below
-                isVertical ? 'flex-col px-2 py-4 gap-3' : 'flex-row px-4 py-3 gap-2.5'
-              } ${
-                isProcessing
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 scale-[1.02] shadow-emerald-100 dark:shadow-emerald-950/40 ring-4 ring-emerald-500/20 animate-pulse'
-                  : isNodeActive
-                  ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 dark:border-indigo-400 scale-[1.02] shadow-indigo-100 dark:shadow-indigo-950/40 ring-4 ring-indigo-500/20'
-                  : selected
+            // Vertical layout: icon on top, text below
+            isVertical ? 'flex-col px-2 py-4 gap-3' : 'flex-row px-4 py-3 gap-2.5'
+            } ${isProcessing
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 scale-[1.02] shadow-emerald-100 dark:shadow-emerald-950/40 ring-4 ring-emerald-500/20 animate-pulse'
+              : isNodeActive
+                ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 dark:border-indigo-400 scale-[1.02] shadow-indigo-100 dark:shadow-indigo-950/40 ring-4 ring-indigo-500/20'
+                : selected
                   ? `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.border} ${style.ring}`} ${isCustomTheme ? '' : 'ring-4 ring-indigo-500/10'}`
                   : `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.border} ${style.borderHover}`}`
-              }`
-        }`}
+            }`
+          }`}
       >
         {/* Icon */}
         <div
-          className={`flex items-center justify-center shrink-0 overflow-hidden transition-all duration-300 ${
-            displayMode === 'icon-only'
+          className={`flex items-center justify-center shrink-0 overflow-hidden transition-all duration-300 ${displayMode === 'icon-only'
               ? 'w-full h-full'
-              : 'w-8 h-8'
-          }`}
+              : 'w-9 h-9'
+            }`}
         >
           {(() => {
             if (customStyles.productIcon) {
@@ -209,14 +206,14 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
                   !!customStyles.productIconWordmark
                 );
                 if (IconComponent) {
-                  const size = displayMode === 'icon-only' ? '80%' : 26;
+                  const size = displayMode === 'icon-only' ? '80%' : 30;
                   const isColored = customStyles.productIconColored !== false;
                   const isHex = customStyles.iconColor?.startsWith('#');
-                  const finalIconColor = isHex 
-                    ? customStyles.iconColor 
+                  const finalIconColor = isHex
+                    ? customStyles.iconColor
                     : (customStyles.iconColor ? themeStyles[customStyles.iconColor]?.text : style.text);
                   return (
-                    <div 
+                    <div
                       className={`flex items-center justify-center w-full h-full ${!isColored && !isHex ? finalIconColor : ''}`}
                       style={!isColored && isHex ? { color: finalIconColor } : undefined}
                     >
