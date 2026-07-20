@@ -148,8 +148,8 @@ export const calculateSchedules = (
       childGroups[c.stepNumber].push(c);
     });
 
-    let childReadyTime = forwardReach;
-    let latestSyncEnd = forwardReach;
+    let childReadyTime = forwardReach + ipDur;
+    let latestSyncEnd = childReadyTime;
 
     Object.keys(childGroups).map(Number).sort((a, b) => a - b).forEach(gn => {
       const group = childGroups[gn];
@@ -168,12 +168,13 @@ export const calculateSchedules = (
       });
     });
 
-    // Return transit starts after all sync children complete + internal process
-    const returnStart = latestSyncEnd + ipDur;
+    // Return transit starts after all sync children complete
+    const returnStart = latestSyncEnd;
     const totalEnd = returnStart + halfTransit;
 
     schedules[seq.id] = { start: startTime, end: totalEnd };
     return totalEnd;
+
   }
 
   // Process root-level steps grouped by stepNumber.

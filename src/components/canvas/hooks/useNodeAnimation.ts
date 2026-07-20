@@ -65,7 +65,7 @@ export const useNodeAnimation = (nodeId: string) => {
 
             if (nodeId === tgtId && timing?.internalProcess) {
               const ipDuration = timing.internalProcess.duration ?? 1000;
-              const tooltipStart = sched.end - halfTransit - ipDuration;
+              const tooltipStart = sched.start + halfTransit;
               const tooltipEnd = tooltipStart + ipDuration;
               if (currentTime >= tooltipStart && currentTime < tooltipEnd) {
                 tooltipActive = true;

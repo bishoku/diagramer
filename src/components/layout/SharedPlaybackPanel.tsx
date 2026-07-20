@@ -30,8 +30,9 @@ export const SharedPlaybackPanel: React.FC = () => {
     2000,
     ...Object.values(schedules).map((s) => {
       const seqId = Object.keys(schedules).find(k => schedules[k] === s);
+      const seq = seqId ? logicalData.sequences.find(q => q.id === seqId) : null;
       const timing = seqId ? visualData.timelines?.[seqId] : null;
-      const tooltipDur = timing?.internalProcess?.duration ?? 0;
+      const tooltipDur = (!seq?.isRoundTrip && timing?.internalProcess) ? (timing.internalProcess.duration ?? 0) : 0;
       return s.end + tooltipDur;
     })
   );

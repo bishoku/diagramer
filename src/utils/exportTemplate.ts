@@ -827,8 +827,8 @@ export const generateStandaloneHtml = (
           childGroups[c.stepNumber].push(c);
         });
 
-        let childReadyTime = forwardReach;
-        let latestSyncEnd = forwardReach;
+        let childReadyTime = forwardReach + ipDur;
+        let latestSyncEnd = childReadyTime;
 
         Object.keys(childGroups).map(Number).sort((a, b) => a - b).forEach(gn => {
           const group = childGroups[gn];
@@ -847,13 +847,13 @@ export const generateStandaloneHtml = (
           });
         });
 
-        const returnStart = latestSyncEnd + ipDur;
+        const returnStart = latestSyncEnd;
         const totalEnd = returnStart + halfTransit;
 
         const internalProcess = tConf.internalProcess ? {
           text: tConf.internalProcess.text,
-          start: latestSyncEnd,
-          end: returnStart,
+          start: forwardReach,
+          end: forwardReach + ipDur,
           duration: ipDur
         } : null;
 
@@ -915,7 +915,12 @@ export const generateStandaloneHtml = (
 
     // Initialize DOM Layout
     const schedules = calculateSchedules(initialData.logicalData, initialData.visualData.timelines || {});
-    maxDuration = schedules.length > 0 ? Math.max(...schedules.map(s => s.end)) + 500 : 2000;
+    maxDuration = schedules.length > 0 
+      ? Math.max(...schedules.map(s => {
+          const ipEnd = s.internalProcess ? s.internalProcess.end : 0;
+          return Math.max(s.end, ipEnd);
+        })) + 500 
+      : 2000;
     
     // Set Slider Limits
     document.getElementById('time-slider').max = maxDuration;
