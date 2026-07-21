@@ -112,7 +112,6 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
     borderColor: customStyles.borderColor || (isCustomTheme ? themeKey : undefined),
     borderStyle: customStyles.borderStyle || undefined,
     borderRadius: customStyles.borderRadius ? `${customStyles.borderRadius}px` : undefined,
-    boxShadow: ((isNodeActive || selected) && isCustomTheme) ? `0 0 0 4px ${themeKey}33` : undefined,
   };
 
   // ── Key design principle ──────────────────────────────────────────────────
@@ -202,11 +201,11 @@ export const BaseNode: React.FC<BaseNodeProps> = memo(({ id, data, selected }) =
             // Vertical layout: icon on top, text below
             isVertical ? 'flex-col px-2 py-4 gap-3' : 'flex-row px-4 py-3 gap-2.5'
             } ${isProcessing
-              ? 'bg-white dark:bg-slate-900 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 shadow-emerald-100 dark:shadow-emerald-950/40 ring-4 ring-emerald-500/20'
+              ? 'bg-white dark:bg-slate-900 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500'
               : isNodeActive
-                ? `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.bg} ${style.border} ${style.ring} ring-4`}`
+                ? `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.bg} ${style.border}`}`
                 : selected
-                  ? `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.border} ${style.ring} ring-4`}`
+                  ? `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.border}`}`
                   : `bg-white dark:bg-slate-900 ${isCustomTheme ? '' : `${style.border} ${style.borderHover}`}`
             }`
           }`}
