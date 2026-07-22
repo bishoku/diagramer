@@ -831,7 +831,7 @@ const FlowWrapper: React.FC = () => {
       )}
 
       {/* Floating Clear Canvas Button (Bottom Right) */}
-      <div className="absolute bottom-4 right-14 z-40 flex items-center">
+      <div className="absolute bottom-4 right-14 z-40 flex items-center export-exclude">
         <button
           onClick={() => setShowClearModal(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 shadow-md transition-all active:scale-95 cursor-pointer font-sans"

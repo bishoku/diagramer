@@ -126,7 +126,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   { key: 'dark', label: t.themeDark },
                   { key: 'nord', label: t.themeNord },
                   { key: 'dracula', label: t.themeDracula },
-                  { key: 'synthwave', label: t.themeSynthwave }
+                  { key: 'synthwave', label: t.themeSynthwave },
+                  { key: 'retro', label: t.themeRetro }
                 ] as const).map(({ key, label }) => (
                   <button
                     key={key}

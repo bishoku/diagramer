@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useEdgeAnimation } from './hooks';
 import { AnimationParticle } from './ParticleSvg';
 import { resolveParticleType } from '../../config/particles';
+import { getThemeEdgeColors } from '../../utils/themeUtils';
 
 interface ParallelBezierParams {
   sourceX: number;
@@ -232,10 +233,13 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
   const protocolText = le?.protocol ? `- [${le.protocol}]` : '';
   const stepLabel = stepNums.length > 0 ? `${stepNums.join(', ')}${protocolText}` : '';
 
+  const appTheme = useAppStore((s) => s.theme);
+  const themeColors = useMemo(() => getThemeEdgeColors(appTheme), [appTheme]);
+
   // Read visual properties from VisualEdge (not from LogicalEdge)
   const hasCustomColor = !!(ve?.color);
-  const customColor = ve?.color || '#94a3b8';
-  const activeColor = hasCustomColor ? ve!.color! : '#6366f1';
+  const customColor = ve?.color || themeColors.defaultColor;
+  const activeColor = hasCustomColor ? ve!.color! : themeColors.activeColor;
 
   let isEdgeActive = false;
   if (isAnimating || isSelected) isEdgeActive = true;
@@ -306,6 +310,7 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
                 type={particleType}
                 rotation={pos.rotation}
                 stepNumber={activeStepNumber}
+                color={strokeColor}
               />
             </g>
           ))
@@ -318,6 +323,7 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
                 type={particleType}
                 rotation={particlePos.rotation}
                 stepNumber={activeStepNumber}
+                color={strokeColor}
               />
             </g>
           )
@@ -337,9 +343,10 @@ export const AnimatedEdge: React.FC<EdgeProps> = memo((props) => {
             <div 
               className={
                 isEdgeActive
-                  ? "px-2 py-0.5 rounded-full bg-indigo-600 text-white border border-indigo-400 text-[9px] font-extrabold shadow-md select-none transition-colors duration-150"
+                  ? "px-2 py-0.5 rounded-full text-white text-[9px] font-extrabold shadow-md select-none transition-colors duration-150"
                   : "px-2 py-0.5 rounded-full bg-slate-900/90 dark:bg-white text-white dark:text-slate-950 text-[9px] font-extrabold shadow-md border border-slate-700/50 dark:border-slate-200 transition-colors select-none"
               }
+              style={isEdgeActive ? { backgroundColor: activeColor, borderColor: activeColor } : undefined}
             >
               {stepLabel}
             </div>

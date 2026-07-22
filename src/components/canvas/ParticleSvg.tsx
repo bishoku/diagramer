@@ -18,13 +18,14 @@ interface AnimParticleProps {
   type: ParticleType;
   rotation: number;       // current path rotation — used to counter-rotate labels
   stepNumber: number | null;
+  color?: string;
 }
 
 const C = '#ffffff'; // label/icon color on top of fill
 
-export const AnimationParticle: React.FC<AnimParticleProps> = ({ type, rotation, stepNumber }) => {
+export const AnimationParticle: React.FC<AnimParticleProps> = ({ type, rotation, stepNumber, color }) => {
   const def = PARTICLE_MAP[type];
-  const fill = def?.color ?? '#4f46e5';
+  const fill = color || def?.color || '#6366f1';
   const R = -rotation; // counter-rotation for upright labels
 
   const label = stepNumber !== null ? (

@@ -1,12 +1,13 @@
 import { StateCreator } from 'zustand';
 import { AppState, WorkspaceMeta } from '../../types';
 import { Language, Theme } from '../../i18n/translations';
-import { StorageService } from '../../services/storage';
+import { StorageService, isTauri } from '../../services/storage';
 import { migratePortFormat } from '../../utils/portMigration';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 const applyTheme = (theme: Theme) => {
   // Remove custom theme classes first
-  document.documentElement.classList.remove('theme-nord', 'theme-dracula', 'theme-synthwave');
+  document.documentElement.classList.remove('theme-nord', 'theme-dracula', 'theme-synthwave', 'theme-retro');
   
   if (theme === 'light') {
     document.documentElement.classList.remove('dark');
@@ -33,6 +34,11 @@ export interface WorkspaceSlice {
   rightSidebarOpen: boolean;
   isSaving: boolean;
   isReadOnly: boolean;
+  isFullscreen: boolean;
+
+  toggleFullscreen: () => Promise<void>;
+  exitFullscreen: () => Promise<void>;
+  initFullscreenListener: () => void;
 
   setWorkspace: (ws: WorkspaceMeta | null) => void;
   setDiagrams: (diagrams: import('../../types').DiagramMeta[]) => void;
@@ -85,12 +91,13 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
   isDirty: false,
   isCreateDiagramModalOpen: false,
   language: 'en',
-  theme: 'light',
+  theme: 'nord',
   maxSteps: 30,
   leftSidebarOpen: true,
   rightSidebarOpen: true,
   isSaving: false,
   isReadOnly: false,
+  isFullscreen: false,
 
   setWorkspace: (ws) => set({ currentWorkspace: ws }),
   setDiagrams: (diagrams) => set({ diagrams }),
@@ -403,9 +410,9 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
         finalLang = prefObj.language;
       }
       
-      const finalTheme: Theme = ['dark', 'light', 'nord', 'dracula', 'synthwave'].includes(prefObj.theme)
+      const finalTheme: Theme = ['dark', 'light', 'nord', 'dracula', 'synthwave', 'retro'].includes(prefObj.theme)
         ? prefObj.theme
-        : 'light';
+        : 'nord';
       const finalMaxSteps: number = typeof prefObj.maxSteps === 'number' ? prefObj.maxSteps : 30;
       
       set({ language: finalLang, theme: finalTheme, maxSteps: finalMaxSteps });
@@ -416,8 +423,8 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       console.error('Error loading app preferences:', err);
       const sysLang = navigator.language || 'en';
       const finalLang: Language = sysLang.toLowerCase().startsWith('tr') ? 'tr' : 'en';
-      set({ language: finalLang, theme: 'light', maxSteps: 30 });
-      applyTheme('light');
+      set({ language: finalLang, theme: 'nord', maxSteps: 30 });
+      applyTheme('nord');
       
       try {
         await get().loadLibrary();
@@ -428,6 +435,75 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
   toggleLeftSidebar: () => set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
   toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
   openRightSidebar: () => set({ rightSidebarOpen: true }),
+
+  initFullscreenListener: () => {
+    if (isTauri()) {
+      try {
+        const appWindow = getCurrentWindow();
+        appWindow.isFullscreen().then((isFs) => set({ isFullscreen: isFs })).catch(() => {});
+        appWindow.onResized(async () => {
+          try {
+            const isFs = await appWindow.isFullscreen();
+            set({ isFullscreen: isFs });
+          } catch (_) {}
+        }).catch(() => {});
+      } catch (_) {}
+    } else {
+      const handleFsChange = () => {
+        set({ isFullscreen: !!document.fullscreenElement });
+      };
+      document.addEventListener('fullscreenchange', handleFsChange);
+    }
+  },
+
+  toggleFullscreen: async () => {
+    const nextFs = !get().isFullscreen;
+    set({ isFullscreen: nextFs });
+
+    if (isTauri()) {
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setFullscreen(nextFs);
+      } catch (err) {
+        console.warn('Error toggling Tauri window fullscreen:', err);
+      }
+    } else {
+      try {
+        if (nextFs) {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          }
+        } else {
+          if (document.fullscreenElement && document.exitFullscreen) {
+            await document.exitFullscreen();
+          }
+        }
+      } catch (err) {
+        console.warn('Error toggling browser fullscreen:', err);
+      }
+    }
+  },
+
+  exitFullscreen: async () => {
+    set({ isFullscreen: false });
+
+    if (isTauri()) {
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setFullscreen(false);
+      } catch (err) {
+        console.warn('Error exiting Tauri window fullscreen:', err);
+      }
+    } else {
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      } catch (err) {
+        console.warn('Error exiting browser fullscreen:', err);
+      }
+    }
+  },
   viewMode: 'freeform' as const,
   toggleViewMode: () => set((state) => ({ 
     viewMode: state.viewMode === 'freeform' ? 'sequence' as const : 'freeform' as const 

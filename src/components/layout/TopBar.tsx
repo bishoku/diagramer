@@ -74,28 +74,8 @@ export const TopBar: React.FC = () => {
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiText, setAiText] = useState('');
 
-  // Fullscreen State
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  React.useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreen = async () => {
-    if (!document.fullscreenElement) {
-      await document.documentElement.requestFullscreen().catch(err => {
-        console.warn(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      }
-    }
-  };
+  const isFullscreen = useAppStore((s) => s.isFullscreen);
+  const toggleFullscreen = useAppStore((s) => s.toggleFullscreen);
 
   const handleBackToWelcome = () => {
     setWorkspace(null);

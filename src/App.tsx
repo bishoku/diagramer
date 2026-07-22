@@ -17,9 +17,12 @@ function App() {
   const isReadOnly = useAppStore((state) => state.isReadOnly);
   const viewMode = useAppStore((state) => state.viewMode);
 
+  const initFullscreenListener = useAppStore((state) => state.initFullscreenListener);
+
   useEffect(() => {
     // Load app preferences (language and theme) on startup
     loadAppPreferences();
+    initFullscreenListener();
 
     // Google Drive Sync Feature Flag Check
     const isGoogleSyncEnabled = import.meta.env.VITE_ENABLE_GOOGLE_SYNC === 'true';

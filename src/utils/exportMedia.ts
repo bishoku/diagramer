@@ -7,7 +7,35 @@ import { writeFile } from '@tauri-apps/plugin-fs';
 import { isTauri } from '../services/storage';
 
 // ─────────────────────────────────────────────────────────────
-// PNG Export (unchanged)
+const EXCLUDE_SELECTOR = '.react-flow__controls, .react-flow__panel, .react-flow__minimap, .react-flow__attribution, .export-exclude';
+
+const shouldExcludeNode = (domNode: HTMLElement): boolean => {
+  if (!domNode || !domNode.classList) return false;
+  return (
+    domNode.classList.contains('react-flow__controls') ||
+    domNode.classList.contains('react-flow__panel') ||
+    domNode.classList.contains('react-flow__minimap') ||
+    domNode.classList.contains('react-flow__attribution') ||
+    domNode.classList.contains('export-exclude')
+  );
+};
+
+const hideUIElements = () => {
+  const elements = document.querySelectorAll(EXCLUDE_SELECTOR);
+  elements.forEach((el) => {
+    (el as HTMLElement).style.setProperty('display', 'none', 'important');
+  });
+  return elements;
+};
+
+const restoreUIElements = (elements: NodeListOf<Element>) => {
+  elements.forEach((el) => {
+    (el as HTMLElement).style.removeProperty('display');
+  });
+};
+
+// ─────────────────────────────────────────────────────────────
+// PNG Export
 // ─────────────────────────────────────────────────────────────
 export const exportToPng = async (
   containerSelector: string,
@@ -19,11 +47,9 @@ export const exportToPng = async (
     throw new Error('Diagram container not found.');
   }
 
-  try {
-    // Hide zoom controls and steps panel temporarily
-    const elementsToHide = document.querySelectorAll('.react-flow__controls, .react-flow__panel, .react-flow__minimap');
-    elementsToHide.forEach((el) => ((el as HTMLElement).style.display = 'none'));
+  const elementsToHide = hideUIElements();
 
+  try {
     const customBg = useAppStore.getState().visualData?.canvas?.bgColor;
     const isDark = document.documentElement.classList.contains('dark');
     const bgColor = customBg || (isDark ? '#0f172a' : '#f8fafc');
@@ -35,10 +61,8 @@ export const exportToPng = async (
       width: node.clientWidth,
       height: node.clientHeight,
       style: { transform: 'scale(1)', transformOrigin: 'top left' },
+      filter: (domNode) => !shouldExcludeNode(domNode as HTMLElement),
     });
-
-    // Restore hidden elements
-    elementsToHide.forEach((el) => ((el as HTMLElement).style.display = ''));
 
     if (isTauri()) {
       const selectedPath = await save({
@@ -63,10 +87,12 @@ export const exportToPng = async (
       a.download = defaultName;
       a.click();
     }
-  } catch (error) {
-    throw error;
+  } finally {
+    restoreUIElements(elementsToHide);
   }
 };
+
+
 
 // ─────────────────────────────────────────────────────────────
 // Shared helpers
@@ -113,10 +139,7 @@ const captureFrames = async (
   const scaledWidth  = Math.round(node.clientWidth  * scale / 2) * 2;
   const scaledHeight = Math.round(node.clientHeight * scale / 2) * 2;
 
-  const elementsToHide = document.querySelectorAll(
-    '.react-flow__controls, .react-flow__panel, .react-flow__minimap'
-  );
-  elementsToHide.forEach((el) => ((el as HTMLElement).style.display = 'none'));
+  const elementsToHide = hideUIElements();
 
   const waitRender = () =>
     new Promise<void>((resolve) =>
@@ -126,60 +149,64 @@ const captureFrames = async (
   const results: { canvas: HTMLCanvasElement; delay: number }[] = [];
   let lastHash: number | null = null;
 
-  for (let frame = 0; frame <= totalFrames; frame++) {
-    const time = Math.min(frame * stepMs, maxDuration);
-    store.setCurrentTime(time);
-    await waitRender();
-    await new Promise((r) => setTimeout(r, 10)); // let react-flow finish
+  try {
+    for (let frame = 0; frame <= totalFrames; frame++) {
+      const time = Math.min(frame * stepMs, maxDuration);
+      store.setCurrentTime(time);
+      await waitRender();
+      await new Promise((r) => setTimeout(r, 10)); // let react-flow finish
 
-    // Capture at high resolution, then scale to the target output size.
-    // fontEmbedCSS is pre-fetched once before the loop so fonts render correctly
-    // on every frame without re-downloading. skipFonts is intentionally NOT used
-    // here — it caused html-to-image to fall back to a system font with different
-    // character metrics, making edge label text wrap at wrong break points.
-    const raw = await toCanvas(node, {
-      pixelRatio,
-      fontEmbedCSS,
-      backgroundColor: bgColor,
-      width: node.clientWidth,
-      height: node.clientHeight,
-      style: { transform: 'scale(1)', transformOrigin: 'top left' },
-    });
+      // Capture at high resolution, then scale to the target output size.
+      // fontEmbedCSS is pre-fetched once before the loop so fonts render correctly
+      // on every frame without re-downloading. skipFonts is intentionally NOT used
+      // here — it caused html-to-image to fall back to a system font with different
+      // character metrics, making edge label text wrap at wrong break points.
+      const raw = await toCanvas(node, {
+        pixelRatio,
+        fontEmbedCSS,
+        backgroundColor: bgColor,
+        width: node.clientWidth,
+        height: node.clientHeight,
+        style: { transform: 'scale(1)', transformOrigin: 'top left' },
+        filter: (domNode) => !shouldExcludeNode(domNode as HTMLElement),
+      });
 
-    // Scale to target output size.
-    // When pixelRatio > 1 and scale ≤ 1, this is supersampling: the higher-res
-    // capture is scaled down, producing sharper text and crisper edges.
-    let target = raw;
-    if (raw.width !== scaledWidth || raw.height !== scaledHeight) {
-      target = document.createElement('canvas');
-      target.width  = scaledWidth;
-      target.height = scaledHeight;
-      const ctx = target.getContext('2d')!;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(raw, 0, 0, scaledWidth, scaledHeight);
-    }
+      // Scale to target output size.
+      // When pixelRatio > 1 and scale ≤ 1, this is supersampling: the higher-res
+      // capture is scaled down, producing sharper text and crisper edges.
+      let target = raw;
+      if (raw.width !== scaledWidth || raw.height !== scaledHeight) {
+        target = document.createElement('canvas');
+        target.width  = scaledWidth;
+        target.height = scaledHeight;
+        const ctx = target.getContext('2d')!;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(raw, 0, 0, scaledWidth, scaledHeight);
+      }
 
-    if (skipStatic) {
-      const ctx = target.getContext('2d')!;
-      const imageData = ctx.getImageData(0, 0, target.width, target.height);
-      const hash = hashPixels(imageData.data);
+      if (skipStatic) {
+        const ctx = target.getContext('2d')!;
+        const imageData = ctx.getImageData(0, 0, target.width, target.height);
+        const hash = hashPixels(imageData.data);
 
-      if (lastHash !== null && hash === lastHash && results.length > 0) {
-        // Identical frame — extend the last frame's delay instead
-        results[results.length - 1].delay += stepMs;
+        if (lastHash !== null && hash === lastHash && results.length > 0) {
+          // Identical frame — extend the last frame's delay instead
+          results[results.length - 1].delay += stepMs;
+        } else {
+          results.push({ canvas: target, delay: stepMs });
+          lastHash = hash;
+        }
       } else {
         results.push({ canvas: target, delay: stepMs });
-        lastHash = hash;
       }
-    } else {
-      results.push({ canvas: target, delay: stepMs });
-    }
 
-    onProgress(Math.floor((frame / totalFrames) * 55));
+      onProgress(Math.floor((frame / totalFrames) * 55));
+    }
+  } finally {
+    restoreUIElements(elementsToHide);
   }
 
-  elementsToHide.forEach((el) => ((el as HTMLElement).style.display = ''));
   return results;
 };
 

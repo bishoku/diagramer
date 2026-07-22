@@ -36,6 +36,7 @@ export const translations = {
     themeNord: "Nord (Kuzey)",
     themeDracula: "Dracula",
     themeSynthwave: "Synthwave (Neon)",
+    themeRetro: "Retro (Kehribar)",
     langSystem: "Sistem Dili (Türkçe)",
     langTr: "Türkçe",
     langEn: "English",
@@ -271,6 +272,7 @@ export const translations = {
     themeNord: "Nord",
     themeDracula: "Dracula",
     themeSynthwave: "Synthwave",
+    themeRetro: "Retro (Amber)",
     langSystem: "System Language (English)",
     langTr: "Türkçe",
     langEn: "English",
@@ -472,7 +474,7 @@ export const translations = {
 };
 
 export type Language = 'tr' | 'en';
-export type Theme = 'dark' | 'light' | 'nord' | 'dracula' | 'synthwave';
+export type Theme = 'dark' | 'light' | 'nord' | 'dracula' | 'synthwave' | 'retro';
 
 export interface Preferences {
   language: 'system' | Language;

@@ -298,7 +298,12 @@ export interface AppState {
   rightSidebarOpen: boolean;
   timelineOpen: boolean;
   timelineHeight: number;
-  
+  isFullscreen: boolean;
+
+  toggleFullscreen: () => Promise<void>;
+  exitFullscreen: () => Promise<void>;
+  initFullscreenListener: () => void;
+
   // Actions
   setWorkspace: (ws: WorkspaceMeta | null) => void;
   setDiagrams: (diagrams: DiagramMeta[]) => void;

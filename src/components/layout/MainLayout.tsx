@@ -24,15 +24,8 @@ export const MainLayout: React.FC = () => {
   const [isResizing, setIsResizing] = useState(false);
   const resizerRef = useRef<HTMLDivElement>(null);
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+  const isFullscreen = useAppStore((s) => s.isFullscreen);
+  const exitFullscreen = useAppStore((s) => s.exitFullscreen);
 
   const openDiagramIds = useAppStore((s) => s.openDiagramIds);
   const activeDiagramId = useAppStore((s) => s.activeDiagramId);
@@ -79,8 +72,8 @@ export const MainLayout: React.FC = () => {
       {/* Floating Exit Fullscreen Button */}
       {isFullscreen && (
         <button
-          onClick={() => document.exitFullscreen()}
-          className="absolute top-4 right-4 z-50 p-2 bg-slate-900/50 hover:bg-slate-900/80 text-white rounded-lg shadow-lg transition-all backdrop-blur-sm"
+          onClick={exitFullscreen}
+          className="absolute top-4 right-4 z-50 p-2 bg-slate-900/50 hover:bg-slate-900/80 text-white rounded-lg shadow-lg transition-all backdrop-blur-sm cursor-pointer"
           title={language === 'tr' ? 'Tam Ekrandan Çık' : 'Exit Fullscreen'}
         >
           <Minimize className="w-5 h-5" />

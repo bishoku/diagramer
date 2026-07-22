@@ -79,6 +79,7 @@ export const PreferencesModal: React.FC<PreferencesModalProps> = ({
                 { key: 'nord', label: t.themeNord, Icon: Moon },
                 { key: 'dracula', label: t.themeDracula, Icon: Moon },
                 { key: 'synthwave', label: t.themeSynthwave, Icon: Moon },
+                { key: 'retro', label: t.themeRetro, Icon: Moon },
               ] as const).map(({ key, label: themeLabel, Icon }) => (
                 <button
                   key={key}

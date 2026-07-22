@@ -139,6 +139,33 @@ h1, h2, h3, h4, h5, h6 {
   background: #ff79c6;
 }
 
+/* Custom visual styling overrides for Retro (Amber/Arcade) theme */
+.theme-retro {
+  --color-slate-950: #1a1412; /* base background (warm dark brown) */
+  --color-slate-900: #261e1b; /* secondary container background */
+  --color-slate-800: #42352f; /* border primary */
+  --color-slate-850: #332824; /* border secondary */
+  --color-slate-700: #f5e6d3; /* primary text (warm cream/parchment) */
+  --color-slate-600: #ffb703; /* primary titles (amber gold) */
+  --color-slate-500: #fb8500; /* accent orange */
+  --color-slate-400: #d97706; /* accent ochre */
+  --color-slate-200: #f5e6d3;
+  --color-slate-100: #fff7ed;
+  --color-slate-50: #1a1412;
+  
+  --color-indigo-600: #d97706; /* primary action buttons */
+  --color-indigo-500: #fb8500; /* action button hover */
+  --color-indigo-400: #ffb703;
+  
+  color-scheme: dark;
+}
+.theme-retro ::-webkit-scrollbar-thumb {
+  background: #42352f;
+}
+.theme-retro ::-webkit-scrollbar-thumb:hover {
+  background: #fb8500;
+}
+
 /* Animate coordinates layout updates smoothly, except when dragging */
 .react-flow__node:not(.dragging) {
   transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -230,7 +257,8 @@ h1, h2, h3, h4, h5, h6 {
 .dark .react-flow__controls,
 .theme-nord .react-flow__controls,
 .theme-dracula .react-flow__controls,
-.theme-synthwave .react-flow__controls {
+.theme-synthwave .react-flow__controls,
+.theme-retro .react-flow__controls {
   background-color: var(--color-slate-900) !important;
   border: 1px solid var(--color-slate-800) !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25) !important;
@@ -239,14 +267,16 @@ h1, h2, h3, h4, h5, h6 {
 .dark .react-flow__controls-button,
 .theme-nord .react-flow__controls-button,
 .theme-dracula .react-flow__controls-button,
-.theme-synthwave .react-flow__controls-button {
+.theme-synthwave .react-flow__controls-button,
+.theme-retro .react-flow__controls-button {
   color: var(--color-slate-400) !important;
 }
 
 .dark .react-flow__controls-button:hover,
 .theme-nord .react-flow__controls-button:hover,
 .theme-dracula .react-flow__controls-button:hover,
-.theme-synthwave .react-flow__controls-button:hover {
+.theme-synthwave .react-flow__controls-button:hover,
+.theme-retro .react-flow__controls-button:hover {
   background-color: var(--color-slate-800) !important;
   color: var(--color-indigo-400) !important;
 }

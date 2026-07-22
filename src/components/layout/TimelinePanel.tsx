@@ -82,15 +82,22 @@ export const TimelinePanel: React.FC<{ forceCollapsed?: boolean }> = ({ forceCol
 
   // ResizeObserver to dynamically track the available width for scaling
   useEffect(() => {
-    if (!rightPanelRef.current) return;
+    if (!rightPanelRef.current || !timelineOpen) return;
+
+    if (rightPanelRef.current.clientWidth > 0) {
+      setRightPanelWidth(rightPanelRef.current.clientWidth);
+    }
+
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setRightPanelWidth(entry.contentRect.width);
+        if (entry.contentRect.width > 0) {
+          setRightPanelWidth(entry.contentRect.width);
+        }
       }
     });
     observer.observe(rightPanelRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [timelineOpen]);
 
   // Find max simulation time
   const maxTime = Math.max(
